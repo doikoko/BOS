@@ -14,9 +14,3 @@ loader:
 	mov eax, 0xCAFEBABE
 loop:
 	jmp loop	
-	
-EXIT:	mov eax, 60
-	xor rdi, rdi
-	
-	syscall
-	
