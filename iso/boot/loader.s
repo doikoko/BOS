@@ -17,8 +17,16 @@ PRINT:
 	int 0x10
 	cmp al, 0
 	jne PRINT
-	
+GDT:
+	LGDT gdt_param 
+
 	hlt 
+
+gdt_param:
+	dq 0x00000000 ; Base segment (8 zeroes)
+	dd 0x0000 ; Flags (4 zeroes)
+	dd 0x0000 ; Limit (4 zeroes)
+	db 0b10011010 ; Access byte
 
 msg: db "hello world", 0
 
