@@ -15,6 +15,6 @@ BOS.iso: $(loader).bin
 	xorriso -as mkisofs -r -b boot/loader.bin -no-emul-boot -boot-load-size 4 -boot-info-table -o BOS.iso ./iso
 ld: $(loader).bin
 $(loader).bin:
-	nasm -f bin $(loader).s -o $(loader).bin
+	nasm -f bin loader.s -o $(loader).bin
 clean:
-	rm -f iso/boot/kernel.elf $(file).o BOS.iso
+	rm -f iso/boot/kernel.elf $(file).o BOS.iso $(loader).bin

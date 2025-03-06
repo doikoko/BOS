@@ -27,6 +27,7 @@ gdt_param:
 	dd 0x0000 ; Flags (4 zeroes)
 	dd 0x0000 ; Limit (4 zeroes)
 	db 0b10011010 ; Access byte
+	dq 0xFFFFFF ; Limit
 
 msg: db "hello world", 0
 
