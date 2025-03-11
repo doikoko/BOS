@@ -7,39 +7,24 @@
 [ORG 0x7C00] 
 [BITS 16]
 
+CODE_OFFSET equ 0x8
+DATA_OFFSET equ 0x10
 _start:
 	xor ax, ax
-	mov ss, ax
+	mov ss, ax	; initialize for real mode
 	mov es, ax
 	mov ds, ax
 
 	mov sp, 0x7C00
-
-	mov si, msg
-	mov ah, 0x0E
-PRINT:
-	mov al, [si]
-	inc si
-	int 0x10
-	cmp al, 0
-	jne PRINT
 GDT:
 	lgdt [gdt_start]
 	
-prot_mode:
-	xor cr0, cr0
-	mov 0x01, cr0
-
-init:
-	mov sp, 0x9C00
-	mov ax, 0x10
-	mov ds, ax
-	mov ss, ax
-	mov fs, ax
-	mov gs, ax
-	mov ex, ax
-
-	hlt 
+prot_mode_switch:
+	mov eax, cr0
+	xor eax, eax
+	or eax, 0x01
+	mov cr0, eax
+	jmp DATA_OFFSET:prot_mode_main
 
 gdt_start:
 	; NULL descriptor
@@ -67,9 +52,26 @@ gdt_start:
 gdt_end:
 gdt_descriptor:
 	dw gdt_end - gdt_start - 1 ; size - 1
-	dd gdt_start
-msg: db "hello world", 0
+	dd gdt_start			
 
-times 510 - ($ - $$) db 0
+prot_mode_main:
+	[BITS 32]
+	
+	mov sp, 0x9C00	; initialize stack for prot mode
+	mov bp, sp
+	mov ax, 0x10	; initialize segment registers
+	mov ds, ax	; for prot mode
+	mov ss, ax
+	mov fs, ax
+	mov gs, ax
+	mov es, ax
 
-dw 0xAA55
+	in al, 0x92	; enabling a20 line
+	or al, 0x2
+	out 0x92, al
+
+	jmp $
+
+times 510 - ($ - $$) db 0	; repeat for fill free memory without 2 last bytes
+
+dw 0xAA55			; 2 last bytes for BIOS correct initialize
