@@ -1,20 +1,12 @@
+file = kernel/kernel
+loader = boot/loader/loader
 
-file = kernel
-loader = iso/boot/loader
-
-all: kernel.elf
-
-kernel.elf: $(file).o
-	ld -T $(file).ld -m elf_x86_64 $(file).o -o kernel.elf && mv kernel.elf iso/boot && rm -f $(file).o
-
-$(file).o: $(file).s
-	nasm -f elf64 $(file).s -o $(file).o 
-
-iso: BOS.iso
-BOS.iso: $(loader).bin
-	xorriso -as mkisofs -r -b boot/loader.bin -no-emul-boot -boot-load-size 4 -boot-info-table -o BOS.iso ./iso
-ld: $(loader).bin
-$(loader).bin:
-	nasm -f bin loader.s -o $(loader).bin
+all:
+	nasm -f elf64 $(file).s -o $(file)_asm.o 
+	gcc -c $(file).c -o $(file)_c.o
+	gcc $(file)_c.o $(file)_asm.o -T $(file).ld -o $(file).elf -e _start -nostartfiles 
+	mv $(file).elf ./iso/boot/
+	nasm -f bin loader/loader.s -o iso/$(loader).bin
+	xorriso -as mkisofs -r -b $(loader).bin -no-emul-boot -boot-load-size 4 -boot-info-table -o BOS.iso ./iso
 clean:
-	rm -f iso/boot/kernel.elf $(file).o BOS.iso $(loader).bin
+	rm -f iso/boot/kernel.elf $(file)_asm.o $(file)_c.o $(loader).bin BOS.iso

@@ -9,22 +9,32 @@
 
 CODE_OFFSET equ 0x8
 DATA_OFFSET equ 0x10
+
+KERNEL_POS equ 0x1000	; 4096 bits dec, 512 bytes
+			; loader - 512 size bytes,
+			; then kernel will placed to 512
 _start:
 	xor ax, ax
 	mov ss, ax	; initialize for real mode
 	mov es, ax
 	mov ds, ax
-
 	mov sp, 0x7C00
-GDT:
-	lgdt [gdt_start]
-	
+
+read_kernel:
+	mov bx, KERNEL_POS 
+	mov dl, 0x80	; always to int 0x13
+	mov cl, 0x02	; second sector(each 512 bytes)
+	mov ch, 0x00	; first cylinder
+	mov ah, 0x02	; read
+	mov al, 8	; 8 sectors to read
+	int 0x13
 prot_mode_switch:
+	lgdt [gdt_start]
 	mov eax, cr0
 	xor eax, eax
 	or eax, 0x01
 	mov cr0, eax
-	jmp DATA_OFFSET:prot_mode_main
+	jmp CODE_OFFSET:prot_mode_main
 
 gdt_start:
 	; NULL descriptor
@@ -70,7 +80,7 @@ prot_mode_main:
 	or al, 0x2
 	out 0x92, al
 
-	jmp $
+	jmp CODE_OFFSET:read_kernel
 
 times 510 - ($ - $$) db 0	; repeat for fill free memory without 2 last bytes
 
