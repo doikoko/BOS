@@ -20,6 +20,7 @@ _start:
 	mov ds, ax
 	mov sp, 0x7C00
 
+	lgdt [gdt_start]
 read_kernel:
 	mov bx, KERNEL_POS 
 	mov dl, 0x80	; always to int 0x13
@@ -29,7 +30,7 @@ read_kernel:
 	mov al, 8	; 8 sectors to read
 	int 0x13
 prot_mode_switch:
-	lgdt [gdt_start]
+	[BITS 32]
 	mov eax, cr0
 	xor eax, eax
 	or eax, 0x01
@@ -65,8 +66,6 @@ gdt_descriptor:
 	dd gdt_start			
 
 prot_mode_main:
-	[BITS 32]
-	
 	mov sp, 0x9C00	; initialize stack for prot mode
 	mov bp, sp
 	mov ax, 0x10	; initialize segment registers
@@ -80,7 +79,6 @@ prot_mode_main:
 	or al, 0x2
 	out 0x92, al
 
-	jmp CODE_OFFSET:read_kernel
 
 times 510 - ($ - $$) db 0	; repeat for fill free memory without 2 last bytes
 
