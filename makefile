@@ -10,4 +10,4 @@ all:
 	mv $(loader).bin iso/boot/$(loader).bin
 	xorriso -as mkisofs -r -b boot/$(loader).bin -no-emul-boot -boot-load-size 4 -boot-info-table -o BOS.iso ./iso
 clean:
-	rm -f iso/boot/kernel.elf $(file)_asm.o $(file)_c.o $(loader).bin BOS.iso
+	rm -f iso/boot/kernel.elf $(file)_asm.o $(file)_c.o iso/boot/$(loader).bin BOS.iso

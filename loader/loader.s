@@ -14,13 +14,19 @@ KERNEL_POS equ 0x1000	; 4096 bits dec, 512 bytes
 			; loader - 512 size bytes,
 			; then kernel will placed to 512
 _start:
-	xor ax, ax
-	mov ss, ax	; initialize for real mode
+	mov si, msg	; print message
+	call PRINT
+
+	mov si, test
+	call PRINT
+	mov sp, 0x7C00
+	xor ax, ax	
+	mov ss, ax
 	mov es, ax
 	mov ds, ax
-	mov sp, 0x7C00
+	
+	lgdt [gdt_descriptor]
 
-	lgdt [gdt_start]
 read_kernel:
 	mov bx, KERNEL_POS 
 	mov dl, 0x80	; always to int 0x13
@@ -29,15 +35,14 @@ read_kernel:
 	mov ah, 0x02	; read
 	mov al, 8	; 8 sectors to read
 	int 0x13
+
 prot_mode_switch:
 	[BITS 32]
-	mov eax, cr0
 	xor eax, eax
 	or eax, 0x01
 	mov cr0, eax
 	jmp CODE_OFFSET:prot_mode_main
-
-gdt_start:
+gdt_descriptor:
 	; NULL descriptor
 	dd 0x00000000
 	dd 0x00000000
@@ -62,8 +67,8 @@ gdt_start:
 
 gdt_end:
 gdt_descriptor:
-	dw gdt_end - gdt_start - 1 ; size - 1
-	dd gdt_start			
+	dw gdt_end - gdt_descriptor - 1 ; size - 1
+	dd gdt_descriptor		
 
 prot_mode_main:
 	mov sp, 0x9C00	; initialize stack for prot mode
@@ -77,9 +82,20 @@ prot_mode_main:
 
 	in al, 0x92	; enabling a20 line
 	or al, 0x2
-	out 0x92, al
+	out 0x92, al	
+	hlt
 
+PRINT:
+	mov ah, 0x0E
+	mov al, [si]
+	inc si
+	int 0x10
+	cmp al, 0
+	jne PRINT
+	ret
 
-times 510 - ($ - $$) db 0	; repeat for fill free memory without 2 last bytes
+msg: dw "loading os:", 0
+test:db "test", 0
+times 510 - ($ - $$) db 0
 
-dw 0xAA55			; 2 last bytes for BIOS correct initialize
+dw 0xAA55
