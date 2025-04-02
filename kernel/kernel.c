@@ -1,5 +1,4 @@
-#include <stdio.h>
+#include "./kernel.h"
 
-void hello(){
-    printf("hello world\n");
+int main(){
 }

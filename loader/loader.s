@@ -17,15 +17,13 @@ _start:
 	mov si, msg	; print message
 	call PRINT
 
-	mov si, test
-	call PRINT
 	mov sp, 0x7C00
 	xor ax, ax	
 	mov ss, ax
 	mov es, ax
 	mov ds, ax
 	
-	lgdt [gdt_descriptor]
+	lgdt [gdt_start]
 
 read_kernel:
 	mov bx, KERNEL_POS 
@@ -42,7 +40,7 @@ prot_mode_switch:
 	or eax, 0x01
 	mov cr0, eax
 	jmp CODE_OFFSET:prot_mode_main
-gdt_descriptor:
+gdt_start:
 	; NULL descriptor
 	dd 0x00000000
 	dd 0x00000000
@@ -83,8 +81,6 @@ prot_mode_main:
 	in al, 0x92	; enabling a20 line
 	or al, 0x2
 	out 0x92, al	
-	hlt
-
 PRINT:
 	mov ah, 0x0E
 	mov al, [si]
@@ -95,7 +91,6 @@ PRINT:
 	ret
 
 msg: dw "loading os:", 0
-test:db "test", 0
 times 510 - ($ - $$) db 0
 
 dw 0xAA55
