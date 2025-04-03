@@ -33,4 +33,13 @@ extern void move_cursor(unsigned int row, unsigned int column);
 extern void configure_serial_port_baud_rate(unsigned int serial_port, unsigned int divisor);
 
 
+#define CONIG_PORT_SETTING 0x03
+// 7| 0 |6| 0 |5| 000 |2| 0 |1| 11 |0|
+// 0,1: 	8 bit data
+// 2: 	number of stop bytes
+// 3,4,5:number of parity
+// 6:	break control
+// 7:	access byte
+extern void set_serial_port_settings(unsigned int serial_port, unsigned short settings);
+
 #endif

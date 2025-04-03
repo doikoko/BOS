@@ -71,7 +71,7 @@ configure_serial_port_baud_rate:
 	mov cx, si ; save divisor
 
 	mov di, ax
-	add di, 3
+	add di, 3  ; LINE_COMMAND
 	mov si, SERIAL_PORT_ENABLE_DOUBLE_SEND
 	call outp
 
@@ -88,5 +88,9 @@ configure_serial_port_baud_rate:
 
 	ret
 
-
-		
+set_serial_port_settings:
+	add di, 3
+	and si, 0x00FF
+	call outp
+	
+	ret
