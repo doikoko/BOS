@@ -4,6 +4,7 @@ global outp
 global print
 global move_cursor
 global configure_serial_port_baud_rate
+global set_serial_port_settings
 
 section .bss
 	resb KERNEL_STACK_SIZE	; allocate 
