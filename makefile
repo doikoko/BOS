@@ -1,15 +1,16 @@
-file = kernel/kernel
+kernel = kernel/kernel
+IO = IO/io
 loader = loader/loader
 CC = gcc
 flags = -Wall -Wextra -Werror -m32 -nostdlib -nostdinc -fno-builtin -fno-stack-protector -nostartfiles -nodefaultlibs
 all:
-	nasm -f elf64 $(file).s -o $(file)_asm.o 
+	nasm -f elf32 $(IO).s -o $(IO)_asm.o 
+	$(CC) -c $(flags) $(IO).c -o $(IO)_c.o
+
+	$(CC) -c $(flags) $(kernel).c -o $(kernel).o
 	
-	$(CC) -c $(file).c -o $(file)_c.o
-	
-	$(CC) $(flags) $(file)_c.o $(file)_asm.o -T $(file).ld -melf_i386 -o $(file).elf -e _start -nostartfiles 
-	
-	mv $(file).elf ./iso/boot/
+	$(CC) $(flags) $(kernel).o $(IO)_asm.o $(IO)_c.o -T $(kernel).ld -elf32 -o $(kernel).elf -e _start -nostartfiles 
+	mv $(kernel).elf ./iso/boot/
 	
 	nasm -f bin $(loader).s -o $(loader).bin
 	
@@ -18,5 +19,4 @@ all:
 	xorriso -as mkisofs -r -b boot/$(loader).bin -no-emul-boot \
 		-boot-load-size 4 -boot-info-table -o BOS.iso ./iso
 clean:
-	rm -f iso/boot/kernel.elf $(file)_asm.o $(file)_c.o \ 
-	iso/boot/$(loader).bin BOS.iso
+	rm -f iso/boot/kernel.elf iso/boot/$(loader).bin BOS.iso
