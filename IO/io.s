@@ -1,10 +1,9 @@
 %define KERNEL_STACK_SIZE 0x1000
 
 global outp
+global inp
 global print
 global move_cursor
-global configure_serial_port_baud_rate
-global set_serial_port_settings
 
 section .bss
 	resb KERNEL_STACK_SIZE	; allocate 
@@ -12,7 +11,6 @@ section .bss
 		; size of kernel stack instead 
 	; just move sp to some location in memory
 section .text
-RET: ret
 outp:
 	mov dx, si	; only rdx must to contain
 			; address of port
@@ -20,15 +18,35 @@ outp:
 	mov ax, di	; move data to send it
 	out dx, ax	; send data to port di
 	ret
-print:			;write text using framebuffer
+inp:
+	in ax, si
+	ret
+print_c:			;write text using framebuffer
 	mov eax, 0x000B8000 ;address of framebuffer
-	mov [eax], edi
-	mov [eax + 1], esi 
+	mov [eax], [di]
+	mov cx, si
+	and byte cl, 0x0F
+	or byte [eax + 1], cl 
 	shl byte [eax + 1], 4
 	mov cx, dx
 	and byte cl, 0x0F
 	or  byte [eax + 1], cl 
+	
 	ret
+print_s:
+	cmp byte cl, 0
+	je E
+	sub esp, 1
+	mov byte [esp], cl // length
+	
+P:	
+	call print_c	
+	sub [esp], 1
+	cmp byte [esp], 0
+	jne P
+
+	add esp, 1
+E:	ret
 
 %define FB_COMMAND_PORT	0X3D4
 %define FB_DATA_PORT	0X3D5
@@ -60,38 +78,4 @@ move_cursor:
 
 	ret
 
-; SERIAL_DATA_PORT               (base) (base)
-; SERIAL_FIFO_COMMAND_PORT       (base) (base + 2)
-; SERIAL_LINE_COMMAND_PORT       (base) (base + 3)
-; SERIAL_MODEM_COMMAND_PORT      (base) (base + 4)
-; SERIAL_LINE_STATUS_PORT        (base) (base + 5)
-
-%define SERIAL_PORT_ENABLE_DOUBLE_SEND 0x80
-configure_serial_port_baud_rate:
-	mov ax, di ; save port
-	mov cx, si ; save divisor
-
-	mov di, ax
-	add di, 3  ; LINE_COMMAND
-	mov si, SERIAL_PORT_ENABLE_DOUBLE_SEND
-	call outp
-
-	mov di, ax
-	mov si, cx
-	shr word si, 8
-	and word si, 0x00FF
-	call outp
-
-	mov di, ax
-	mov si, cx
-	and word si, 0x00FF
-	call outp
-
-	ret
-
-set_serial_port_settings:
-	add di, 3
-	and si, 0x00FF
-	call outp
 	
-	ret
