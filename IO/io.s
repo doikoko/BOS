@@ -19,11 +19,13 @@ outp:
 	out dx, ax	; send data to port di
 	ret
 inp:
-	in ax, si
+	mov dx, si 
+	in al, dx
 	ret
 print_c:			;write text using framebuffer
 	mov eax, 0x000B8000 ;address of framebuffer
-	mov [eax], [di]
+	mov cx, [di]
+	mov [eax], cl 
 	mov cx, si
 	and byte cl, 0x0F
 	or byte [eax + 1], cl 
@@ -37,11 +39,11 @@ print_s:
 	cmp byte cl, 0
 	je E
 	sub esp, 1
-	mov byte [esp], cl // length
+	mov byte [esp], cl ; length
 	
 P:	
 	call print_c	
-	sub [esp], 1
+	sub byte [esp], 0x01
 	cmp byte [esp], 0
 	jne P
 

@@ -1,4 +1,5 @@
 extern outp
+extern inp
 
 global configure_serial_port_baud_rate
 global set_serial_port_settings
@@ -53,4 +54,14 @@ set_serial_port_modem:
 	and si, 0x00FF
 	call outp
 
+	ret
+is_serial_port_free:
+	call inp
+	and al, 0b00100000
+	cmp al, 0
+	je Tr
+	mov ax, 0
+	ret
+Tr:	
+	mov ax, 1
 	ret
