@@ -1,22 +1,22 @@
-ENTRY(_start)
+ENTRY(loader)
 OUTPUT_FORMAT(binary)
 SECTIONS
 {
-	. = 0x100000;
-	.text ALIGN(0x1000):
+	. = 512;
+	.text ALIGN(400):
 	{
 		*(.text)
 	}
-	.bss ALIGN(0x1000):
+	.bss ALIGN(40):
 	{
 		*(.bss)
 		*(.COMMON)
 	}
-	.rodata ALIGN(0x1000):
+	.rodata ALIGN(40):
 	{
 		*(.rodata*)		
 	}	
-	.data ALIGN(0x1000):
+	.data ALIGN(32):
 	{
 		*(.data)
 	}

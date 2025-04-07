@@ -64,10 +64,12 @@ extern is_serial_port_free
 ; int is_serial_port_free(unsigned short port);
 ; ==============================================
 
+%define KERNEL_STACK_SIZE 0x1000
+
 global kernel
-%define KERNEL_STACK_SIZE 1000
 section .bss
-	resb KERNEL_STACK_SIZE ; locate free memory to bss
+	; km - kernel memory
+	km resb KERNEL_STACK_SIZE ; locate free memory to bss
 		 		; instead just move sp register
 section .text
 kernel:
@@ -86,3 +88,9 @@ kernel:
 	mov di, SERIAL_PORT
 	mov si, MODEM_READY_STATUS
 	call set_serial_port_modem ; set a modem in ready status
+	
+	lea edi, [km]
+	mov byte [edi], 0x31
+	mov si, CL_WHITE
+	mov dx, CL_BLACK
+	call print_c

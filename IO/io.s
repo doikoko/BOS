@@ -1,15 +1,9 @@
-%define KERNEL_STACK_SIZE 0x1000
-
 global outp
 global inp
-global print
+global print_c
+global print_s
 global move_cursor
 
-section .bss
-	resb KERNEL_STACK_SIZE	; allocate 
-			; to bss (uninit memory)
-		; size of kernel stack instead 
-	; just move sp to some location in memory
 section .text
 outp:
 	mov dx, si	; only rdx must to contain
