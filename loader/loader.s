@@ -14,10 +14,9 @@
 			; loader - 512 size bytes,
 			; then kernel will placed to 512
 loader:
-	mov si, msg	; print message
-	call PRINT
-
 	mov sp, 0x7C00
+	mov si, msg
+	call PRINT
 	xor ax, ax	
 	mov ss, ax
 	mov es, ax
@@ -89,7 +88,7 @@ PRINT:
 	jne PRINT
 	ret
 
-msg: dw "loading os:", 0
+msg: db "loading os:", 0
 times 510 - ($ - $$) db 0
 
 dw 0xAA55
