@@ -67,30 +67,41 @@ extern is_serial_port_free
 %define KERNEL_STACK_SIZE 0x1000
 
 global kernel
-section .bss
-	; km - kernel memory
-	km resb KERNEL_STACK_SIZE ; locate free memory to bss
-		 		; instead just move sp register
+;section .bss
+;	; km - kernel memory
+;	km resb KERNEL_STACK_SIZE ; locate free memory to bss
+;		 		; instead just move sp register
 section .text
 kernel:
-	mov di, SERIAL_PORT
-	mov si, 2
-	call configure_serial_port_baud_rate ; 115200 / 2 bouds
-
-	mov di, SERIAL_PORT 
-	mov si, SERIAL_PORT_SETTING
-	call set_serial_port_settings ; set a valid settings
-
-	mov di, SERIAL_PORT 
-	mov si, FIFO_ENABLE
-	call set_serial_port_FIFO_buffers ; set a FIFO
-
-	mov di, SERIAL_PORT
-	mov si, MODEM_READY_STATUS
-	call set_serial_port_modem ; set a modem in ready status
-	
-	lea edi, [km]
-	mov byte [edi], 0x31
-	mov si, CL_WHITE
-	mov dx, CL_BLACK
-	call print_c
+	mov esi, msg
+	call PRINT
+;	mov di, SERIAL_PORT
+;	mov si, 2
+;	call configure_serial_port_baud_rate ; 115200 / 2 bouds
+;
+;	mov di, SERIAL_PORT 
+;	mov si, SERIAL_PORT_SETTING
+;	call set_serial_port_settings ; set a valid settings
+;
+;	mov di, SERIAL_PORT 
+;	mov si, FIFO_ENABLE
+;	call set_serial_port_FIFO_buffers ; set a FIFO
+;
+;	mov di, SERIAL_PORT
+;	mov si, MODEM_READY_STATUS
+;	call set_serial_port_modem ; set a modem in ready status
+;	
+;	lea edi, [km]
+;	mov byte [edi], 0x31
+;	mov si, CL_WHITE
+;	mov dx, CL_BLACK
+;	call print_c
+PRINT:
+	mov ah, 0x0E
+	mov al, [si]
+	inc si
+	int 0x10
+	cmp al, 0
+	jne PRINT
+	ret
+msg: db "test", 0

@@ -14,9 +14,9 @@
 			; loader - 512 size bytes,
 			; then kernel will placed to 512
 loader:
-	mov sp, 0x7C00
-	mov si, msg
-	call PRINT
+;	mov si, msg
+;	call PRINT
+	mov sp, 0x7c00
 	xor ax, ax	
 	mov ss, ax
 	mov es, ax
@@ -30,7 +30,6 @@ read_kernel:
 	mov ah, 0x02	; read
 	mov al, 8	; 8 sectors to read
 	int 0x13
-
 prot_mode_switch:
 	[BITS 32]
 	lgdt [gdt_start]
