@@ -18,25 +18,30 @@ inp:
 	ret
 print_c:			;write text using framebuffer
 	mov eax, 0x000B8000 ;address of framebuffer
-	mov cx, [di]
-	mov [eax], cl 
-	mov cx, si
-	and byte cl, 0x0F
-	or byte [eax + 1], cl 
+	mov byte [eax], di
+	mov byte [eax + 1], si
 	shl byte [eax + 1], 4
-	mov cx, dx
-	and byte cl, 0x0F
-	or  byte [eax + 1], cl 
-	
+	and byte dx, 0x0F
+	or byte [eax + 1], dx
+
 	ret
 print_s:
 	cmp byte cl, 0
 	je E
+	
+	mov eax, 0x000B8000
 	sub esp, 1
 	mov byte [esp], cl ; length
-	
 P:	
-	call print_c	
+	cmp [edi], 0
+	je E
+	mov byte [eax], [edi]
+	mov byte [eax + 1], si
+	shl byte [eax + 1] 4
+	and byte dx, 0x0F
+	or byte [eax + 1], dx
+
+	inc edi
 	sub byte [esp], 0x01
 	cmp byte [esp], 0
 	jne P

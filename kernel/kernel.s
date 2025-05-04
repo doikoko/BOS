@@ -2,22 +2,22 @@
 
 ; ==========INCLUDED FUNCTIONS======
 ; ===============IO.S=============
-%define CL_BLACK    0 ; colors of text
-%define CL_BLUE     1
-%define CL_GREEN    2
-%define CL_CYAN     3
-%define CL_RED      4
-%define CL_MAGENTA  5
-%define CL_BROWN    6
-%define CL_LGREY    7
-%define CL_DGREY    8
-%define CL_LBLUE    9
-%define CL_LGREEN   10
-%define CL_LCYAN    11
-%define CL_LRED     12
-%define CL_LMAGENTA 13
-%define CL_LBROWN   14
-%define CL_WHITE    15
+%define CL_BLACK    0x0 ; colors of text
+%define CL_BLUE     0x1
+%define CL_GREEN    0x2
+%define CL_CYAN     0x3
+%define CL_RED      0x4
+%define CL_MAGENTA  0x5
+%define CL_BROWN    0x6
+%define CL_LGREY    0x7
+%define CL_DGREY    0x8
+%define CL_LBLUE    0x9
+%define CL_LGREEN   0xA
+%define CL_LCYAN    0xB
+%define CL_LRED     0xC
+%define CL_LMAGENTA 0xD
+%define CL_LBROWN   0xE
+%define CL_WHITE    0xF
 
 extern print_c
 extern print_s
@@ -73,8 +73,6 @@ global kernel
 ;		 		; instead just move sp register
 section .text
 kernel:
-	mov esi, msg
-	call PRINT
 ;	mov di, SERIAL_PORT
 ;	mov si, 2
 ;	call configure_serial_port_baud_rate ; 115200 / 2 bouds
@@ -91,17 +89,8 @@ kernel:
 ;	mov si, MODEM_READY_STATUS
 ;	call set_serial_port_modem ; set a modem in ready status
 ;	
-;	lea edi, [km]
-;	mov byte [edi], 0x31
-;	mov si, CL_WHITE
-;	mov dx, CL_BLACK
-;	call print_c
-PRINT:
-	mov ah, 0x0E
-	mov al, [si]
-	inc si
-	int 0x10
-	cmp al, 0
-	jne PRINT
-	ret
+	mov edi, 0x31
+	mov si, CL_WHITE
+	mov dx, CL_BLACK
+	call print_c
 msg: db "test", 0

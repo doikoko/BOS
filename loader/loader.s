@@ -14,8 +14,8 @@
 			; loader - 512 size bytes,
 			; then kernel will placed to 512
 loader:
-;	mov si, msg
-;	call PRINT
+	mov si, msg
+	call PRINT
 	mov sp, 0x7c00
 	xor ax, ax	
 	mov ss, ax
