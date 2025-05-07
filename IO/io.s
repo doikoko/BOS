@@ -17,14 +17,17 @@ inp:
 	in al, dx
 	ret
 print_c:			;write text using framebuffer
-	mov eax, 0x000B8000 ;address of framebuffer
-	mov byte [eax], di
-	mov byte [eax + 1], si
-	shl byte [eax + 1], 4
-	and byte dx, 0x0F
-	or byte [eax + 1], dx
+	;0x000B8000 address of framebuffer
+	mov ax, di
+	mov edi, 0x000B8000 
+	mov byte [edi], al
+	mov ax, si
+	mov byte [edi + 1], al
+	shl byte [edi + 1], 4
+	and byte dl, 0x0F
+	or byte [eax + 1], dl
 
-	ret
+	ret 
 print_s:
 	cmp byte cl, 0
 	je E
@@ -33,13 +36,15 @@ print_s:
 	sub esp, 1
 	mov byte [esp], cl ; length
 P:	
-	cmp [edi], 0
+	cmp byte [edi], 0
 	je E
-	mov byte [eax], [edi]
-	mov byte [eax + 1], si
-	shl byte [eax + 1] 4
-	and byte dx, 0x0F
-	or byte [eax + 1], dx
+	mov byte cl, [edi]
+	mov byte [eax], cl
+	mov cx, si
+	mov byte [eax + 1], cl
+	shl byte [eax + 1], 4
+	and byte dl, 0x0F
+	or byte [eax + 1], dl
 
 	inc edi
 	sub byte [esp], 0x01

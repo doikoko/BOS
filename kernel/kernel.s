@@ -93,4 +93,22 @@ kernel:
 	mov si, CL_WHITE
 	mov dx, CL_BLACK
 	call print_c
+
+	mov edi, 0x02
+	mov esi, 0x02
+	call move_cursor
+
+	mov edi, 0x32
+	mov si, CL_WHITE
+	mov dx, CL_BLACK
+	call print_c
+
+	mov edi, 0x03
+	mov edi, 0x02
+	call move_cursor
+
+	mov edi, 0x33
+	mov si, CL_BLACK
+	mov dx, CL_BLACK
+	call print_c
 msg: db "test", 0
