@@ -97,7 +97,7 @@ gdt_descriptor:
 	dd gdt_descriptor		
 
 prot_mode_main:
-	mov sp, 0x9C00	; initialize stack for prot mode
+	mov sp, 0x7BFF	; initialize stack for prot mode
 	mov bp, sp
 	mov ax, DATA_OFFSET ; initialize segment registers
 	mov ds, ax	; for prot mode
@@ -110,7 +110,29 @@ prot_mode_main:
 	or al, 0x2
 	out 0x92, al	
 
+CPUID_check:
+	pushfd	; if 0x00200000 in EFLAGS is modifable
+	pushfd	; that processor support CPUID
+	xor dword [esp], 0x00200000
+	popfd
+	pushfd
+	pop eax
+	xor eax, [esp]
+	popfd
+	and eax, 0x00200000
+	
+	cmp eax, 0
+	jne .long_mode_error
+
+	mov eax, 1
+	cpuid
+
 	hlt
+	jmp $
+.long_mode_error:
+	mov si, long_mode_error
+	call PRINT
+	jmp $
 PRINT:
 	mov ah, 0x0E
 	mov al, [si]
@@ -125,7 +147,8 @@ error: db "read kernel error", 0
 warning: db "read kernel warning: AH register is ", 0
 status: times 2 db 0
 success: db "success reading kernel", 0
-
+long_mode_error: db "your processor not support 64 bit mode, exiting", 0
+intel_support: db "your processor is intel", 0
 times 510 - ($ - $$) db 0
 
 dw 0xAA55
