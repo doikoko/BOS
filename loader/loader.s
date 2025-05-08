@@ -16,7 +16,8 @@
 loader:
 	mov si, msg
 	call PRINT
-	mov sp, 0x7c00
+
+	mov sp, 0x7BFF
 	xor ax, ax	
 	mov ss, ax
 	mov es, ax
@@ -30,6 +31,36 @@ read_kernel:
 	mov ah, 0x02	; read
 	mov al, 8	; 8 sectors to read
 	int 0x13
+
+	jc .error	; if CF == 1 => int error
+	cmp ah, 0	; if ah == 0 => success
+	jne .warning
+	jmp .success
+
+.error:
+	mov si, error
+	call PRINT
+	hlt
+	jmp $
+
+.warning:
+	add ah, 0x30	; func PRINT will modified ah
+	mov byte [status], ah
+
+	mov si, warning
+	call PRINT
+
+	mov si, status
+	call PRINT
+
+	jmp prot_mode_switch
+
+.success:
+	mov si, success
+	call PRINT
+	
+	jmp prot_mode_switch
+
 prot_mode_switch:
 	[BITS 32]
 	lgdt [gdt_start]
@@ -78,6 +109,8 @@ prot_mode_main:
 	in al, 0x92	; enabling a20 line
 	or al, 0x2
 	out 0x92, al	
+
+	hlt
 PRINT:
 	mov ah, 0x0E
 	mov al, [si]
@@ -87,7 +120,12 @@ PRINT:
 	jne PRINT
 	ret
 
-msg: db "loading os:", 0
+msg: db "loading os, ", 0
+error: db "read kernel error", 0
+warning: db "read kernel warning: AH register is ", 0
+status: times 2 db 0
+success: db "success reading kernel", 0
+
 times 510 - ($ - $$) db 0
 
 dw 0xAA55
