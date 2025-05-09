@@ -122,15 +122,53 @@ CPUID_check:
 	and eax, 0x00200000
 	
 	cmp eax, 0
-	jne .long_mode_error
+	jne .no_long_mode
 
-	mov eax, 1
+	mov eax, 0x80000000
 	cpuid
+	cmp eax, 0x80000001	; if eax bellow => long mode 
+				; not supported
+	jb .no_long_mode
+
+	mov eax, 0x80000001	; if bit edx 29 = 0 => long mode
+				; not supported
+	cpuid			; return value to eax:edx
+	test edx, 1 << 29
+	jz .no_long_mode
+	
+.set_up_PML4:
+	mov edi, 0x1000	; 4kb
+	mov cr3, edi	; set control register
+	xor eax, eax
+	mov ecx, 0x1000
+	rep stosd	; set 4kb to 0
+	mov edi, cr3
+
+	mov [edi], 0x2003 ; set up pointers
+	add edi, 0x1000
+	mov [edi], 0x3003
+	add edi, 0x1000
+	mov [edi], 0x4003
+	add edi, 0x1000
+
+	mov ebx, 0x3
+	mov ecx, 512
+
+.set_entry:
+	mov dword [edi], ebx
+	add ebx, 0x1000
+	add edi, 8
+	loop .set_entry
+
+	mov eax, cr4
+	or eax, 1 << 5
+	mov cr4, eax
+
 
 	hlt
 	jmp $
-.long_mode_error:
-	mov si, long_mode_error
+.no_long_mode:
+	mov si, no_long_mode
 	call PRINT
 	jmp $
 PRINT:
@@ -147,8 +185,8 @@ error: db "read kernel error", 0
 warning: db "read kernel warning: AH register is ", 0
 status: times 2 db 0
 success: db "success reading kernel", 0
-long_mode_error: db "your processor not support 64 bit mode, exiting", 0
-intel_support: db "your processor is intel", 0
+no_long_mode: db "your processor not support 64 bit mode, exiting", 0
+
 times 510 - ($ - $$) db 0
 
 dw 0xAA55
