@@ -63,41 +63,37 @@ read_kernel:
 
 prot_mode_switch:
 	[BITS 32]
-	lgdt [gdt_start]
+	lgdt [GDT32]
 	xor eax, eax
 	or eax, 0x01
 	mov cr0, eax
-	jmp CODE_OFFSET:prot_mode_main
-gdt_start:
-	; NULL descriptor
+	jmp GDT32.Code:prot_mode_main
+GDT32:
+.Null: equ $ - GDT32       
+	dq 0                   
+
+.Code: equ $ - GDT32       
+	dd 0xFFFF              
+	db 0                   
+	db PRESENT | NOT_SYS | EXEC | RW  
+	db GRAN_4K | SZ_32 | 0xF  
+	db 0                   
+
+.Data: equ $ - GDT32       
+	dd 0xFFFF              
+	db 0                   
+	db PRESENT | NOT_SYS | RW  
+	db GRAN_4K | SZ_32 | 0xF   
+	db 0                   
+
+.Pointer:                  
+	dw $ - GDT32 - 1       
+	dd GDT32               
 	db 0x00000000
 	db 0x00000000
-
-	;KERNEL MODE:
-	
-	;code segment (0x8)
-	dw 0xFFFF	; Limit 
-	dw 0x0000	; Base
-	db 0x00 	; Base
-	db 0b10011010	; Access byte
-	db 0b11001111	; Flags
-	db 0x00		; Base
-
-	;data segment (0x10)
-	dw 0xFFFF	; Limit
-	dw 0x0000	; Base
-	db 0x00 	; Base
-	db 0b10010010	; Access byte
-	db 0b11001111	; Flags
-	db 0x00		; Base
-
-gdt_end:
-gdt_descriptor:
-	dw gdt_end - gdt_descriptor - 1 ; size - 1
-	dd gdt_descriptor		
 
 prot_mode_main:
-	mov sp, 0x7BFF	; initialize stack for prot mode
+	mov sp, 0x8B00	; initialize stack for prot mode
 	mov bp, sp
 	mov ax, DATA_OFFSET ; initialize segment registers
 	mov ds, ax	; for prot mode
@@ -122,21 +118,21 @@ CPUID_check:
 	and eax, 0x00200000
 	
 	cmp eax, 0
-	jne .no_long_mode
+	jne no_long_mode
 
 	mov eax, 0x80000000
 	cpuid
 	cmp eax, 0x80000001	; if eax bellow => long mode 
 				; not supported
-	jb .no_long_mode
+	jb no_long_mode
 
 	mov eax, 0x80000001	; if bit edx 29 = 0 => long mode
 				; not supported
 	cpuid			; return value to eax:edx
 	test edx, 1 << 29
-	jz .no_long_mode
+	jz no_long_mode
 	
-.set_up_PML4:
+set_up_PML4:
 	mov edi, 0x1000	; 4kb
 	mov cr3, edi	; set control register
 	xor eax, eax
@@ -144,34 +140,80 @@ CPUID_check:
 	rep stosd	; set 4kb to 0
 	mov edi, cr3
 
-	mov [edi], 0x2003 ; set up pointers
+	mov word [edi], 0x2003 ; set up pointers
 	add edi, 0x1000
-	mov [edi], 0x3003
+	mov word [edi], 0x3003
 	add edi, 0x1000
-	mov [edi], 0x4003
+	mov word [edi], 0x4003
 	add edi, 0x1000
 
 	mov ebx, 0x3
 	mov ecx, 512
 
 .set_entry:
-	mov dword [edi], ebx
+	mov dword [edi], ebx	; set flags to all pages
 	add ebx, 0x1000
 	add edi, 8
 	loop .set_entry
 
-	mov eax, cr4
+	mov eax, cr4	; enable PAE-paging
 	or eax, 1 << 5
 	mov cr4, eax
 
+switch_to_64_bit:
+	mov ecx, 0xC0000080	; loading address of specific register
+	rdmsr
+	or eax, 1 << 8
+	wrmsr			; writing data to specific register
 
+	mov eax, cr0
+	or eax, 1 << 31
+	mov cr0, eax
+
+	lgdt [GDT64]
+	jmp GDT64.Code:long_mode_main
+GDT64:
+.Null: equ $ - GDT64
+	dq 0
+.Code: equ $ - GDT64
+	dd 0xFFFF                                   
+	db 0                                        
+	db PRESENT | NOT_SYS | EXEC | RW            
+	db GRAN_4K | LONG_MODE | 0xF                
+	db 0                                        
+.Data: equ $ - GDT64
+	dd 0xFFFF                                   
+	db 0                                        
+	db PRESENT | NOT_SYS | RW                   
+	db GRAN_4K | SZ_32 | 0xF                    
+	db 0                                        
+.TSS: equ $ - GDT64
+	dd 0x00000068
+	dd 0x00CF8900
+.Pointer:
+	dw $ - GDT64 - 1
+	dq GDT64
+
+no_long_mode:
 	hlt
 	jmp $
-.no_long_mode:
-	mov si, no_long_mode
-	call PRINT
+long_mode_main:
+	[BITS 64]
+	cli
+	mov ax, GDT64.Data
+	mov ds, ax                    ; Set the data segment to the A-register.
+	mov es, ax                    ; Set the extra segment to the A-register.
+	mov fs, ax                    ; Set the F-segment to the A-register.
+	mov gs, ax                    ; Set the G-segment to the A-register.
+	mov ss, ax                    ; Set the stack segment to the A-register.
+	mov edi, 0xB8000              ; Set the destination index to 0xB8000.
+	mov rax, 0x1F201F201F201F20   ; Set the A-register to 0x1F201F201F201F20.
+	mov ecx, 500                  ; Set the C-register to 500.
+	rep stosq  		; clear screen and set it blue 
+	hlt
 	jmp $
 PRINT:
+	[BITS 16]
 	mov ah, 0x0E
 	mov al, [si]
 	inc si
@@ -180,12 +222,24 @@ PRINT:
 	jne PRINT
 	ret
 
+gdt_flags:
+.access:
+	PRESENT        equ 1 << 7     ; Segment in memory
+	NOT_SYS        equ 1 << 4     ; Code/date descriptor
+	EXEC           equ 1 << 3     ; Executable(code)
+	DC             equ 1 << 2     ; direction (0 - to up, 1 - to bottom)
+	RW             equ 1 << 1     ; Write (code) read(data)
+	ACCESSED       equ 1 << 0     ; Access to segment
+.flags:
+	GRAN_4K       equ 1 << 7      ; granularity
+	SZ_32         equ 1 << 6      ; 32-bits segment (1) / 16-bits (0)
+	LONG_MODE     equ 1 << 5      ; 64-bits segment
+
 msg: db "loading os, ", 0
-error: db "read kernel error", 0
-warning: db "read kernel warning: AH register is ", 0
+error: db "kernel error", 0
+warning: db "kernel warning: ", 0
 status: times 2 db 0
-success: db "success reading kernel", 0
-no_long_mode: db "your processor not support 64 bit mode, exiting", 0
+success: db "success kernel", 0
 
 times 510 - ($ - $$) db 0
 
