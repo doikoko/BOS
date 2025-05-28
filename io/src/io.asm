@@ -1,22 +1,13 @@
-global outp
-global inp
-global print_c
-global print_s
-global move_cursor
+extern _outp
+
+global _outp
+global _inp
+global _print_c
+global _print_s
+global _move_cursor
 
 section .text
-outp:
-	mov dx, si	; only rdx must to contain
-			; address of port
-
-	mov ax, di	; move data to send it
-	out dx, ax	; send data to port di
-	ret
-inp:
-	mov dx, si 
-	in al, dx
-	ret
-print_c:			;write text using framebuffer
+_print_c:			;write text using framebuffer
 	;0x000B8000 address of framebuffer
 	mov ax, di
 	mov edi, 0x000B8000 
@@ -28,7 +19,7 @@ print_c:			;write text using framebuffer
 	or byte [eax + 1], dl
 
 	ret 
-print_s:
+_print_s:
 	cmp byte cl, 0
 	je E
 	
@@ -60,7 +51,7 @@ E:	ret
 %define FB_HIGH_BYTE_COMMAND 14
 %define FB_LOW_BYTE_COMMAND  15
 
-move_cursor:
+_move_cursor:
 	add si, di
 	mov ax, si ; ax containing position
 	shr word ax, 8
@@ -68,20 +59,18 @@ move_cursor:
 	
 	mov di, FB_COMMAND_PORT ; enable 2 times sended command
 	mov si, FB_HIGH_BYTE_COMMAND
-	call outp
+	call _outp
 
 	mov di, FB_DATA_PORT
 	mov si, 0x00 ; send high bytes
-	call outp
+	call _outp
 
 	mov di, FB_COMMAND_PORT
 	mov si, FB_LOW_BYTE_COMMAND 
-	call outp
+	call _outp
 
 	mov di, FB_DATA_PORT
 	mov si, ax ; send low bytes
-	call outp
+	call _outp
 
 	ret
-
-	

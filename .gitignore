@@ -1,2 +1,5 @@
-bochslog.txt
-bochsrc.txt
+./.gitignore
+./src
+./release.py
+
+./target

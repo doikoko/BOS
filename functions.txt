@@ -3,7 +3,7 @@
 void outp(unsigned short port, unsigned short data);
 
 // function providing ability read from ports
-char inp(unsigned short port, unsigned short *data);
+char inp(unsigned short port);
 
 // function to print on screen char
 #define CL_BLACK    0 // colors of text
@@ -29,7 +29,7 @@ void print_s(char *buf, unsigned short fg, unsigned short bg, unsigned short len
 void move_cursor(unsigned int row, unsigned int column);
 ==================PORTS=====================
 // function to configure speed in bouds of serial port (default is like in macro)
-// default speed is 115200hz, divisor is a velue that speed will divide
+// default speed is 115200hz, divisor is a value that speed will divide
 // if divisor = 2, speed will be (115200 / 2)bouds
 #define SERIAL_PORT 0x3F8
 

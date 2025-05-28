@@ -1,0 +1,15 @@
+[workspace]
+members = ["io", "ports", "kernel"]
+
+[package]
+name = "BOS"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+io = {path = "./io"}
+ports = {path = "./ports"}
+
+[features]
+new = []
+clean = []
