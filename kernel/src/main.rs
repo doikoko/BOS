@@ -1,5 +1,3 @@
-#![no_std]
-
 use io;
 use ports;
 
@@ -23,5 +21,4 @@ static mut KM: [u8; KERNEL_STACK_SIZE as usize] =
     [0; KERNEL_STACK_SIZE as usize];
     
 fn main() {
-    
 }

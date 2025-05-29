@@ -28,7 +28,10 @@ fn command<T: AsRef<str>>(com: T, msg: T, error: T){
 
 fn main(){
     let argv: String;
-    
+
+    if var("CARGO_PKG_NAME").unwrap() != "kernel" {
+        panic!("error");
+    }
     if var("CARGO_FEATURE_NEW").is_ok(){
         argv = String::from("new");
     } else if var("CARGO_FEATURE_CLEAN").is_ok(){

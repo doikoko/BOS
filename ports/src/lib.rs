@@ -1,4 +1,3 @@
-#![no_std]
 pub mod ports{
     unsafe extern "C"{
         // write data to port

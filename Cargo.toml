@@ -13,3 +13,7 @@ ports = {path = "./ports"}
 [features]
 new = []
 clean = []
+
+[[bin]]
+name = "kernel"
+path = "./kernel/src/main.rs"

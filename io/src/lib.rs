@@ -1,5 +1,3 @@
-#![no_std]
-
 pub mod io{
     #[repr(u8)]
     pub enum Colors{
