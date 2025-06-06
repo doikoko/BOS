@@ -1,5 +1,6 @@
 import sys
 import subprocess
+is_first_exec = True  
 
 def command(com: str):
     subprocess.run(com.split(" "))
@@ -18,6 +19,16 @@ elif argv[1] != "new" and argv[1] != "clean":
 
     exit(1)
 
-command("rustup target add x86_64-unknown-none")
-command("rustup component add rust-src")
-command(f"cargo build -p kernel --features={argv[1]}")
+with open(argv[0], "r+") as f:
+    lines = f.readlines()
+    f.seek(0)
+    if "False" in lines[2]:
+        lines[2] = lines[2].replace("False", "True ")
+        for line in lines:
+            f.write(line)
+
+if is_first_exec:
+    command("rustup target add x86_64-unknown-none")
+    command("rustup component add rust-src")
+
+command(f"cargo +nightly build -p kernel --target=x86_64-unknown-none -Z build-std=core,compiler_builtins --features={argv[1]}")

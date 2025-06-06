@@ -1,3 +1,5 @@
+#![no_std]
+
 pub mod io{
     #[repr(u8)]
     pub enum Colors{
@@ -29,9 +31,9 @@ pub mod io{
             _print_c(buf, fg as u8, bg as u8);
         }
     }
-    pub fn print_s(buf: &u8, fg: Colors, bg: Colors, len: u8){
+    pub fn print_s(buf: &[u8], fg: Colors, bg: Colors, len: u8){
         unsafe {
-            let buf: *const u8 = buf;
+            let buf: *const u8 = buf.as_ptr();
             _print_s(buf, fg as u8, bg as u8, len);
         }
     }

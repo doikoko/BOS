@@ -10,10 +10,6 @@ edition = "2024"
 io = {path = "./io"}
 ports = {path = "./ports"}
 
-[features]
-new = []
-clean = []
-
 [[bin]]
 name = "kernel"
 path = "./kernel/src/main.rs"
