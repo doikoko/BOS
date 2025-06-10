@@ -1,5 +1,10 @@
 #![no_std]
 
+#[panic_handler]
+fn panic_handler(_: &core::panic::PanicInfo) -> !{
+    loop{}
+}
+
 pub mod io{
     #[repr(u8)]
     pub enum Colors{
