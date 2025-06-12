@@ -1,10 +1,5 @@
 #![no_std]
 
-#[panic_handler]
-fn panic_handler(_: &core::panic::PanicInfo) -> !{
-    loop{}
-}
-
 pub mod io{
     #[repr(u8)]
     pub enum Colors{
@@ -25,7 +20,7 @@ pub mod io{
         LBROWN   = 14,
         WHITE    = 15
     }
-    unsafe extern "C"{
+    extern "C"{
         fn _print_c(buf: *const u8, fg: u8, bg: u8);
         fn _print_s(buf: *const u8, fg: u8, bg: u8, len: u8);
         fn _move_cursor(row: u8, column: u8);

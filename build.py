@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True      
+is_first_exec = True        
 
 def command(com: str, error: str = "command error"):
     try:
@@ -26,6 +26,7 @@ with open(argv[0], "r+") as f:
             f.write(line)
 
 if is_first_exec:
+    os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
     command("rustup target add x86_64-unknown-none")
     command("rustup component add rust-src")
 
@@ -49,31 +50,51 @@ elif argv[1] == "new":
         out_dir.mkdir()
 
     try:
-        kernel_rs = Path("kernel").joinpath("src").joinpath("main.rs")
-        linker_script = Path("kernel").joinpath("src").joinpath("kernel.ld")
+        kernel_rs = Path("kernel").joinpath("main.rs")
+        linker_script = Path("kernel").joinpath("kernel.ld")
         kernel_elf = Path("iso").joinpath("boot").joinpath("kernel.elf")
 
         loader_asm = Path("loader").joinpath("loader.asm")
         loader_bin = out_dir.joinpath("loader.bin")
         loader_ko = Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko")
 
-
-        class libraries:
-            static_lib = out_dir.joinpath("libABI.a")    
-            asm = (
-                Path("io").joinpath("src").joinpath("io.asm"),
-                Path("ports").joinpath("src").joinpath("ports.asm") 
+        class Libs:
+            lib_name = (
+                "io",
+                "ports"
             )
-            res = (
-                out_dir.joinpath("io.o"),
-                out_dir.joinpath("ports.o")
-            )
+            class asm:
+                origin = (
+                    Path("io").joinpath("io.asm"),
+                    Path("ports").joinpath("ports.asm") 
+                )
+                object = (
+                    out_dir.joinpath("io.o"),
+                    out_dir.joinpath("ports.o")
+                )
+                stat_lib = (
+                    out_dir.joinpath("libio.a"),
+                    out_dir.joinpath("libports.a")
+                )
+            class rust:
+                origin = (
+                    Path("io").joinpath("lib.rs"),
+                    Path("ports").joinpath("lib.rs")
+                )
+                rust_lib = (
+                    out_dir.joinpath("libio.rlib"),
+                    out_dir.joinpath("libports.rlib")
+                )
 
             @property
-            def libs_to_stat(self) -> str:
-                return " ".join(str(lib) for lib in self.res)
-            
-        libs = libraries()
+            def extern_libs_to_kernel(self) -> str:
+                res = ""
+                for i in range(len(self.lib_name)):
+                    res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
+
+                return res[0:-1]
+
+        libs = Libs()
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
@@ -81,22 +102,31 @@ elif argv[1] == "new":
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
         
-        for i in range(len(libs.asm)):
-            command(f"nasm -f elf64 {libs.asm[i]} -o {libs.res[i]}",
-                f"can't compile {libs.asm[i]}, maybe you haven't nasm compiler")
+        for i in range(len(libs.asm.origin)):
+            command(f"nasm -f elf64 {libs.asm.origin[i]} -o {libs.asm.object[i]}",
+                f"can't compile {libs.asm.origin[i]}, maybe you haven't nasm compiler")
+            
+            command(f"ar crs {libs.asm.stat_lib[i]} {libs.asm.object[i]}",
+                f"error while creating static lib {libs.asm.object[i]}, maybe you haven't ar program")
 
-        command(f"ar crs {libs.static_lib} {libs.libs_to_stat}",
-            f"error while creating static lib {libs.static_lib}, maybe you haven't ar program")
+            com = " ".join([
+                f"rustc --target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
+                f"--crate-type=rlib -L{out_dir} -l static={libs.lib_name[i]} {libs.rust.origin[i]}",
+                f"-o {libs.rust.rust_lib[i]}"
+            ])
+
+            command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
+            
+            os.remove(libs.asm.stat_lib[i])
 
         com = " ".join([f"rustc {kernel_rs}",
             f"--target=x86_64-unknown-none",
-            f"-C linker-flavor=ld",
+            f"{libs.extern_libs_to_kernel}",
             f"-C link-arg=-T{linker_script}",
-            f"-C link-arg=-L{out_dir}",
-            f"-C link-arg=-lABI",
             f"-C link-arg=-e_start",
             f"-o {kernel_elf}",])
         
+        print(com)
         command(com, f"error while compilation {kernel_elf}")
         
         prog = "xorriso as mkisofs"
