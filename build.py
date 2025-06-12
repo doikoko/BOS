@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = False    
+is_first_exec = True      
 
 def command(com: str, error: str = "command error"):
     try:
