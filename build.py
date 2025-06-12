@@ -1,10 +1,11 @@
 import sys
 import subprocess
 import os
-import pathlib as path
+from pathlib import Path
 import platform
+import shutil
 
-is_first_exec = False   
+is_first_exec = False    
 
 def command(com: str, error: str = "command error"):
     try:
@@ -19,8 +20,8 @@ argv = sys.argv
 with open(argv[0], "r+") as f:
     lines = f.readlines()
     f.seek(0)
-    if "True" in lines[6]:
-        lines[6] = lines[6].replace("True", "False")
+    if "True" in lines[7]:
+        lines[7] = lines[7].replace("True", "False")
         for line in lines:
             f.write(line)
 
@@ -43,72 +44,82 @@ elif argv[1] == "new":
     else:
         current_os = "unix"
 
-    out_dir = path.Path("out")
-    out_dir.mkdir()
+    out_dir = Path("out")
+    if not out_dir.exists():
+        out_dir.mkdir()
 
-    linker_script = path.Path("kernel").joinpath("src").joinpath("kernel.ld")
-    
-    loader_asm = path.Path("loader").joinpath("loader.asm")
-    loader_bin = out_dir.joinpath("loader").joinpath("loader.bin")
-    loader_ko = path.Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko")
+    try:
+        kernel_rs = Path("kernel").joinpath("src").joinpath("main.rs")
+        linker_script = Path("kernel").joinpath("src").joinpath("kernel.ld")
+        kernel_elf = Path("iso").joinpath("boot").joinpath("kernel.elf")
 
-    kernel_elf = path.Path("iso").joinpath("boot").joinpath("kernel.elf")
+        loader_asm = Path("loader").joinpath("loader.asm")
+        loader_bin = out_dir.joinpath("loader.bin")
+        loader_ko = Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko")
 
-    class libraries:
-        libs_to_stat: str
-        static_lib = out_dir.joinpath("libABI.a")    
-        asm = (
-            path.Path("io").joinpath("src").joinpath("io.asm"),
-            path.Path("ports").joinpath("src").joinpath("ports.asm") 
-        )
-        res = (
-            out_dir.joinpath("io.o"),
-            out_dir.joinpath("ports.o")
-        )
 
-        def __init__(self):
-            for lib in self.asm:
-                self.libs_to_stat += lib + " "
+        class libraries:
+            static_lib = out_dir.joinpath("libABI.a")    
+            asm = (
+                Path("io").joinpath("src").joinpath("io.asm"),
+                Path("ports").joinpath("src").joinpath("ports.asm") 
+            )
+            res = (
+                out_dir.joinpath("io.o"),
+                out_dir.joinpath("ports.o")
+            )
+
+            @property
+            def libs_to_stat(self) -> str:
+                return " ".join(str(lib) for lib in self.res)
+            
+        libs = libraries()
+
+        command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
+            f"error compilation {loader_asm}")
         
-    libs = libraries()
-    
-    command(f"nasm -f bin {loader_asm} -o ", 
-        f"error compilation {loader_asm}")
-    
-    command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
-        f"error while generating {loader_ko}")
-    
-    for i in range(len(libs.asm)):
-        command(f"nasm -f elf64 {libs.asm[i]} -o {libs.res[i]}",
-            f"can't compile {libs.asm[i]}, maybe you haven't nasm compiler")
-
-    command(f"ar crs {libs.static_lib} {libs.libs_to_stat}",
-        f"error while creating static lib {libs.static_lib}, maybe you haven't ar program")
-
-    command(f"rustc --target=x86_64-unknown-none \
-        -C linker-flavor=ld \
-        -C link-arg=-T{linker_script} \
-        -C link-arg=-L{out_dir} \
-        -C link-arg=-lABI \
-        -C link-arg=-e_start \
-        -o {kernel_elf}",
+        command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
+            f"error while generating {loader_ko}")
         
-        f"error while compilation {kernel_elf}")
-    
-    prog = "xorriso as mkisofs"
-    flags = "-R -J -no-emul-boot -boot-load-size 4"
-    iso = "BOS.iso"
+        for i in range(len(libs.asm)):
+            command(f"nasm -f elf64 {libs.asm[i]} -o {libs.res[i]}",
+                f"can't compile {libs.asm[i]}, maybe you haven't nasm compiler")
 
-    command(f"{prog} -b \"{loader_ko}\" {flags} -o {iso} ./iso",
-        "error while generating ISO")
+        command(f"ar crs {libs.static_lib} {libs.libs_to_stat}",
+            f"error while creating static lib {libs.static_lib}, maybe you haven't ar program")
 
-    out_dir.rmdir()
+        com = " ".join([f"rustc {kernel_rs}",
+            f"--target=x86_64-unknown-none",
+            f"-C linker-flavor=ld",
+            f"-C link-arg=-T{linker_script}",
+            f"-C link-arg=-L{out_dir}",
+            f"-C link-arg=-lABI",
+            f"-C link-arg=-e_start",
+            f"-o {kernel_elf}",])
+        
+        command(com, f"error while compilation {kernel_elf}")
+        
+        prog = "xorriso as mkisofs"
+        flags = "-R -J -no-emul-boot -boot-load-size 4"
+        iso = "BOS.iso"
+
+        loader_ko = Path("boot").joinpath("loader").joinpath("loader.ko")
+
+        print("\nWARNING:\nthis program use a xorriso program to generate iso image\n" \
+        "if iso not generating on your PC try to install xorriso\n " \
+        "sudo apt install xorriso\nsudo pacman -S xorriso...\n")
+        command(f"{prog} -b {loader_ko} {flags} -o {iso} ./iso",
+            "error while generating ISO")
+
+        shutil.rmtree(out_dir)
+    except:
+        shutil.rmtree(out_dir)
 
 elif argv[1] == "clean":
     files_to_remove = (
-        path.Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
-        path.Path("iso").joinpath("boot").joinpath("kernel.elf"),
-        path.Path("BOS.iso")
+        Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
+        Path("iso").joinpath("boot").joinpath("kernel.elf"),
+        Path("BOS.iso")
     )
     
     for file in files_to_remove:
