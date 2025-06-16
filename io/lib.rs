@@ -21,14 +21,13 @@ pub mod io{
         WHITE    = 15
     }
     extern "C"{
-        fn _print_c(buf: *const u8, fg: u8, bg: u8);
+        fn _print_c();
         fn _print_s(buf: *const u8, fg: u8, bg: u8, len: u8);
         fn _move_cursor(row: u8, column: u8);
     }
-    pub fn print_c(buf: &u8, fg: Colors, bg: Colors){
+    pub fn print_c(){
         unsafe {
-            let buf: *const u8 = buf;
-            _print_c(buf, fg as u8, bg as u8);
+            _print_c();
         }
     }
     pub fn print_s(buf: &[u8], fg: Colors, bg: Colors, len: u8){

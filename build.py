@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True        
+is_first_exec = True          
 
 def command(com: str, error: str = "command error"):
     try:
@@ -27,6 +27,12 @@ with open(argv[0], "r+") as f:
 
 if is_first_exec:
     os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
+    try:
+        subprocess.run("rustup default nightly".split(" "))
+    except:
+        command("rustup install nightly")
+        command("rustup default nightly")
+
     command("rustup target add x86_64-unknown-none")
     command("rustup component add rust-src")
 
@@ -61,7 +67,8 @@ elif argv[1] == "new":
         class Libs:
             lib_name = (
                 "io",
-                "ports"
+                "ports",
+                "interrupts"
             )
             class asm:
                 origin = (
@@ -79,11 +86,13 @@ elif argv[1] == "new":
             class rust:
                 origin = (
                     Path("io").joinpath("lib.rs"),
-                    Path("ports").joinpath("lib.rs")
+                    Path("ports").joinpath("lib.rs"), 
+                    Path("interrupts").joinpath("lib.rs")
                 )
                 rust_lib = (
                     out_dir.joinpath("libio.rlib"),
-                    out_dir.joinpath("libports.rlib")
+                    out_dir.joinpath("libports.rlib"),
+                    out_dir.joinpath("libinterrupts.rlib")
                 )
 
             @property
@@ -102,29 +111,37 @@ elif argv[1] == "new":
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
         
-        for i in range(len(libs.asm.origin)):
-            command(f"nasm -f elf64 {libs.asm.origin[i]} -o {libs.asm.object[i]}",
-                f"can't compile {libs.asm.origin[i]}, maybe you haven't nasm compiler")
-            
-            command(f"ar crs {libs.asm.stat_lib[i]} {libs.asm.object[i]}",
-                f"error while creating static lib {libs.asm.object[i]}, maybe you haven't ar program")
+        for i in range(len(libs.rust.origin)):
+            com: str
+            if i < len(libs.asm.origin):
+                command(f"nasm -f elf64 {libs.asm.origin[i]} -o {libs.asm.object[i]}",
+                    f"can't compile {libs.asm.origin[i]}, maybe you haven't nasm compiler")
+                
+                command(f"ar crs {libs.asm.stat_lib[i]} {libs.asm.object[i]}",
+                    f"error while creating static lib {libs.asm.object[i]}, maybe you haven't ar program")
 
-            com = " ".join([
-                f"rustc --target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
-                f"--crate-type=rlib -L{out_dir} -l static={libs.lib_name[i]} {libs.rust.origin[i]}",
-                f"-o {libs.rust.rust_lib[i]}"
-            ])
+                com = " ".join([
+                    f"rustc --target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
+                    f"--crate-type=rlib -L{out_dir} -l static={libs.lib_name[i]} {libs.rust.origin[i]}",
+                    f"-o {libs.rust.rust_lib[i]}"
+                ])
+            
+            else:
+                com = " ".join([
+                    f"rustc --target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
+                    f"--crate-type=rlib {libs.rust.origin[i]}",
+                    f"-o {libs.rust.rust_lib[i]}"
+                ])
 
             command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
-            
             os.remove(libs.asm.stat_lib[i])
-
+        
         com = " ".join([f"rustc {kernel_rs}",
             f"--target=x86_64-unknown-none",
             f"{libs.extern_libs_to_kernel}",
             f"-C link-arg=-T{linker_script}",
             f"-C link-arg=-e_start",
-            f"-o {kernel_elf}",])
+            f"-o {kernel_elf}"])
         
         print(com)
         command(com, f"error while compilation {kernel_elf}")

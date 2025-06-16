@@ -7,16 +7,7 @@ global _print_s
 global _move_cursor
 
 section .text
-_print_c:			;write text using framebuffer
-	;0x000B8000 address of framebuffer
-	mov ax, di
-	mov edi, 0x000B8000 
-	mov byte [edi], al
-	mov ax, si
-	mov byte [edi + 1], al
-	shl byte [edi + 1], 4
-	and byte dl, 0x0F
-	or byte [eax + 1], dl
+_print_c:
 
 	ret 
 _print_s:

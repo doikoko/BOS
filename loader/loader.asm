@@ -140,11 +140,11 @@ set_up_PML4:
 	rep stosd	; set 4kb to 0
 	mov edi, cr3
 
-	mov word [edi], 0x2003 ; set up pointers
+	mov qord [edi], 0x0000000000002003 ; set up pointers
 	add edi, 0x1000
-	mov word [edi], 0x3003
+	mov qord [edi], 0x0000000000003003
 	add edi, 0x1000
-	mov word [edi], 0x4003
+	mov qord [edi], 0x0000000000004003
 	add edi, 0x1000
 
 	mov ebx, 0x3
@@ -172,6 +172,13 @@ switch_to_64_bit:
 
 	lgdt [GDT64]
 	jmp GDT64.Code:long_mode_main
+
+
+
+%define TSS_size 104
+%define TSS_addr 0x8000
+section .gdt
+align 8
 GDT64:
 .Null: equ $ - GDT64
 	dq 0
@@ -188,8 +195,14 @@ GDT64:
 	db GRAN_4K | SZ_32 | 0xF                    
 	db 0                                        
 .TSS: equ $ - GDT64
-	dd 0x00000068
-	dd 0x00CF8900
+    dw TSS_Size - 1                          
+    dw TSS_addr & 0xFFFF                     
+    db (TSS_addr >> 16) & 0xFF               
+    db 0x89                                  
+    db 0                                     
+    db (TSS_addr >> 24) & 0xFF               
+    dd (TSS_addr >> 32) & 0xFFFFFFFF         
+    dd 0                                     
 .Pointer:
 	dw $ - GDT64 - 1
 	dq GDT64
@@ -199,19 +212,18 @@ no_long_mode:
 	jmp $
 long_mode_main:
 	[BITS 64]
-	cli
+	hlt
 	mov ax, GDT64.Data
+	mov rsp, 0x20000
 	mov ds, ax                    ; Set the data segment to the A-register.
 	mov es, ax                    ; Set the extra segment to the A-register.
 	mov fs, ax                    ; Set the F-segment to the A-register.
 	mov gs, ax                    ; Set the G-segment to the A-register.
 	mov ss, ax                    ; Set the stack segment to the A-register.
-	mov edi, 0xB8000              ; Set the destination index to 0xB8000.
-	mov rax, 0x1F201F201F201F20   ; Set the A-register to 0x1F201F201F201F20.
-	mov ecx, 500                  ; Set the C-register to 500.
-	rep stosq  		; clear screen and set it blue 
-	hlt
-	jmp $
+	mov ax, GDT64.TSS - GDT64.Null
+	ltr ax
+	mov rax, 0x1000
+	jmp rax
 PRINT:
 	[BITS 16]
 	mov ah, 0x0E
@@ -240,6 +252,31 @@ error: db "kernel error", 0
 warning: db "kernel warning: ", 0
 status: times 2 db 0
 success: db "success kernel", 0
+
+times TSS_addr - ($ - $$) db 0
+section .tss
+align 16
+%define RSP_0 0x000000000000D000
+%define IST_0 0x000000000000E000
+%define IST_1 0x000000000000F000
+%define IST_2 0x0000000000010000
+TSS_Base:
+    dd 0x00000000                    
+    dq RSP_0
+    dq 0
+    dq 0                 
+    dq IST_0                             
+    dq IST_1                         
+    dq IST_2
+    dq 0
+    dq 0
+    dq 0
+    dq 0
+    dq 0
+    dw 0                             
+    dw 0
+TSS_Size equ $ - TSS_Base
+times IST_2 - ($ - $$) db 0
 
 times 510 - ($ - $$) db 0
 
