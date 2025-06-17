@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True          
+is_first_exec = False          
 
 def command(com: str, error: str = "command error"):
     try:
@@ -15,8 +15,8 @@ def command(com: str, error: str = "command error"):
         print(e)
         exit(1)
 
-argv = sys.argv
-
+#argv = sys.argv
+argv = ["build.py", "new"]
 with open(argv[0], "r+") as f:
     lines = f.readlines()
     f.seek(0)
@@ -125,6 +125,8 @@ elif argv[1] == "new":
                     f"--crate-type=rlib -L{out_dir} -l static={libs.lib_name[i]} {libs.rust.origin[i]}",
                     f"-o {libs.rust.rust_lib[i]}"
                 ])
+                command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
+                os.remove(libs.asm.stat_lib[i])
             
             else:
                 com = " ".join([
@@ -132,9 +134,8 @@ elif argv[1] == "new":
                     f"--crate-type=rlib {libs.rust.origin[i]}",
                     f"-o {libs.rust.rust_lib[i]}"
                 ])
+                command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
 
-            command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
-            os.remove(libs.asm.stat_lib[i])
         
         com = " ".join([f"rustc {kernel_rs}",
             f"--target=x86_64-unknown-none",

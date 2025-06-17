@@ -7,6 +7,7 @@ extern crate ports;
 extern crate interrupts;
 
 use ports::ports::outp;
+use interrupts::ints::IntDescrTable64;
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 

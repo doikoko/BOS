@@ -140,11 +140,11 @@ set_up_PML4:
 	rep stosd	; set 4kb to 0
 	mov edi, cr3
 
-	mov qord [edi], 0x0000000000002003 ; set up pointers
+	mov word [edi], 0x2003 ; set up pointers
 	add edi, 0x1000
-	mov qord [edi], 0x0000000000003003
+	mov word [edi], 0x3003
 	add edi, 0x1000
-	mov qord [edi], 0x0000000000004003
+	mov word [edi], 0x4003
 	add edi, 0x1000
 
 	mov ebx, 0x3
@@ -257,17 +257,17 @@ times TSS_addr - ($ - $$) db 0
 section .tss
 align 16
 %define RSP_0 0x000000000000D000
-%define IST_0 0x000000000000E000
-%define IST_1 0x000000000000F000
-%define IST_2 0x0000000000010000
+%define IST_1 0x000000000000E000
+%define IST_2 0x000000000000F000
+%define IST_3 0x0000000000010000
 TSS_Base:
     dd 0x00000000                    
     dq RSP_0
     dq 0
     dq 0                 
-    dq IST_0                             
-    dq IST_1                         
-    dq IST_2
+    dq IST_1                            
+    dq IST_2                         
+    dq IST_3
     dq 0
     dq 0
     dq 0
@@ -276,8 +276,6 @@ TSS_Base:
     dw 0                             
     dw 0
 TSS_Size equ $ - TSS_Base
-times IST_2 - ($ - $$) db 0
-
-times 510 - ($ - $$) db 0
+times IST_3 - ($ - $$) db 0
 
 dw 0xAA55
