@@ -1,34 +1,37 @@
 #![no_std]
 
 #![feature(abi_x86_interrupt)]
-#[allow(non_snake_case)]
-#[allow(dead_code)]
-#[allow(private_interfaces)]
+#[allow(non_snake_case, dead_code, private_interfaces)]
 pub mod ints{
     use core::mem::MaybeUninit;
 
     #[repr(packed, C)]
-    struct InterruptStackFrame{
-        rip: u64,
-        cs: u64,
-        rflags: u64,
-        rsp: u64,
-        ss: u64
+    pub struct IDTR{
+        pub limit: u16,
+        pub base: u64
+    }
+    #[repr(packed, C)]
+    pub struct InterruptStackFrame{
+        pub rip: u64,
+        pub cs: u64,
+        pub rflags: u64,
+        pub rsp: u64,
+        pub ss: u64
     }
     
     #[repr(packed, C)]
-    struct IDTGate{
-        offset_1: u16,
-        selector: u16,
-        IST: u8,    /* Interrupt Stack Table offset (3 zeroes),
+    pub struct IDTGate{
+        pub offset_1: u16,
+        pub selector: u16,
+        pub IST: u8,    /* Interrupt Stack Table offset (3 zeroes),
                             Gate type (interrupt (0b1110 0x0E) / trap(0b1111 0x0F)) in summ 1 byte */ 
-        type_attributes: u8,
-        offset_2: u16,
-        offset_3: u32,
-        zero: u32
+        pub type_attributes: u8,
+        pub offset_2: u16,
+        pub offset_3: u32,
+        pub zero: u32
     }
     impl IDTGate{
-        fn new(FnAddress: u64, IST_num: u8, is_gate_type_trap: bool) -> IDTGate{ /* IST_num - 1-3,
+        pub fn new(FnAddress: u64, IST_num: u8, is_gate_type_trap: bool) -> IDTGate{ /* IST_num - 1-3,
         is_gate_type_trap true-trap gate, false-interrupt */
             IDTGate {
                 offset_1: FnAddress as u16,
@@ -44,7 +47,7 @@ pub mod ints{
 
     #[repr(C)]
     pub struct IntDescrTable64{
-        gates: [IDTGate; 255]
+        pub gates: [IDTGate; 255]
     }
     impl IntDescrTable64{
         #[inline(always)]
@@ -54,13 +57,23 @@ pub mod ints{
                     .assume_init()
             }
         }
-        pub fn append(&mut self, index: usize, FnAddress: u64, IST_num: u8, is_gate_type_trap: bool) {
-            self.gates[index] = IDTGate::new(FnAddress, IST_num, is_gate_type_trap);
+        pub fn append(
+            &mut self,
+            index: usize,
+            FnAddress: extern "x86-interrupt" fn(& mut InterruptStackFrame),
+            IST_num: u8,
+            is_gate_type_trap: bool
+        ){
+            self.gates[index] = IDTGate::new(FnAddress as u64, IST_num, is_gate_type_trap);
         }
     }
 
     #[no_mangle]
-    pub extern "x86-interrupt" fn divide_zero_handler(_stack_frame: &mut InterruptStackFrame){
+    pub extern "x86-interrupt" fn default_handler(_stack_frame: &mut InterruptStackFrame){
         loop{}
+    }
+    #[no_mangle]
+    pub extern "x86-interrupt" fn divide_zero_handler(_stack_frame: &mut InterruptStackFrame){
+        unsafe { core::arch::asm!("mov rax, 0"); };
     }
 }

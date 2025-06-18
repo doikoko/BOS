@@ -7,7 +7,7 @@ extern crate ports;
 extern crate interrupts;
 
 use ports::ports::outp;
-use interrupts::ints::IntDescrTable64;
+use interrupts::ints;
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
@@ -37,9 +37,26 @@ static mut KM: [u8; KERNEL_STACK_SIZE] =
 [0; KERNEL_STACK_SIZE];
 
 
-
 pub extern "C" fn _start() -> ! {
-    let mut IDT = IntDescrTable64::new();
+    // set up interrupt descriptor table
+    let mut idt = ints::IntDescrTable64::new();
+    idt.append(0, ints::divide_zero_handler, 1, true);
+
+    for i in 0..254{
+        idt.append(i, ints::default_handler, 1, true)
+    }
+    let idtr = ints::IDTR {
+        limit: (core::mem::size_of::<ints::IntDescrTable64>() - 1) as u16,
+        base: &idt as *const _ as u64
+    };
+    unsafe {
+        core::arch::asm!(
+            "lidt [{}]",
+            "sti",
+            in(reg) &idtr,
+            options(nostack, readonly, preserves_flags)
+        );
+    };
 
     // configure serial port baud rate (115200 / 2 bouds)
     outp(GET_SERIAL_LINE_COMMAND_PORT!(SERIAL_COM1_BASE),
