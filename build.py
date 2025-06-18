@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = False          
+is_first_exec = True              
 
 def command(com: str, error: str = "command error"):
     try:
@@ -15,8 +15,8 @@ def command(com: str, error: str = "command error"):
         print(e)
         exit(1)
 
-#argv = sys.argv
-argv = ["build.py", "new"]
+argv = sys.argv
+
 with open(argv[0], "r+") as f:
     lines = f.readlines()
     f.seek(0)
@@ -25,7 +25,7 @@ with open(argv[0], "r+") as f:
         for line in lines:
             f.write(line)
 
-if is_first_exec:
+if is_first_exec and argv[1] == "new":
     os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
     try:
         subprocess.run("rustup default nightly".split(" "))
