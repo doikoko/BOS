@@ -3,21 +3,24 @@
 pub mod ports{
     extern "C"{
         // write data to port
-        fn _outp(port: u16, data: u8);
+        fn _outb(port: u16, data: u8); /* b - byte, w - word */
+        fn _outw(port: u16, data: u16);
         // read data from port
-        fn _inp(port: u16) -> u16;
-        
-        
+        fn _inb(port: u16) -> u16;
     }
-    pub fn outp(port: u16, data: u8){
+    pub fn outb(port: u16, data: u8){
         unsafe {
-            _outp(port, data);
+            _outb(port, data);
         }
     }
-    pub fn inp(port: u16) -> u16{
+    pub fn inb(port: u16) -> u16{
         unsafe {
-            _inp(port)
+            _inb(port)
         }
     }
-
+    pub fn outw(port: u16, data: u16){
+        unsafe{
+            _outw(port, data);
+        }
+    }
 }

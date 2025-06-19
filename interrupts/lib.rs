@@ -1,8 +1,13 @@
 #![no_std]
 
 #![feature(abi_x86_interrupt)]
-#[allow(non_snake_case, dead_code, private_interfaces)]
+
+extern crate io;
+extern crate ports;
+
+
 pub mod ints{
+    use ports::ports::{outw, inb};
     use core::mem::MaybeUninit;
 
     #[repr(packed, C)]
@@ -67,13 +72,72 @@ pub mod ints{
             self.gates[index] = IDTGate::new(FnAddress as u64, IST_num, is_gate_type_trap);
         }
     }
-
-    #[no_mangle]
-    pub extern "x86-interrupt" fn default_handler(_stack_frame: &mut InterruptStackFrame){
-        loop{}
+    macro_rules! shutdown {
+        () => {
+            unsafe { core::arch::asm!(
+                "cli",
+                "lidt[0]",
+                "int3"
+            ) } /* triple fault -> reboot */
+            outw(0x604, 0x2000); /* this and next lines shutdown for VM */
+            outw(0xB004, 0);
+        }
     }
-    #[no_mangle]
+    macro_rules! cli {
+        () => {
+            unsafe { core::arch::asm!("cli"); };
+        }
+    }
+    macro_rules! sti {
+        () => {
+            unsafe { core::arch::asm!("sti"); };
+        }
+    }
+    macro_rules! hlt {
+        () => {
+            unsafe { core::arch::asm!("hlt"); };
+        }
+    }
+    pub extern "x86-interrupt"  fn infinity_handler(_stack_frame: &mut InterruptStackFrame){
+        loop{
+            hlt!();
+        }
+    }
+    
+    pub extern "x86-interrupt"  fn default_handler(_stack_frame: &mut InterruptStackFrame){}
+    
     pub extern "x86-interrupt" fn divide_zero_handler(_stack_frame: &mut InterruptStackFrame){
-        unsafe { core::arch::asm!("mov rax, 0"); };
+        unsafe { core::arch::asm!("mov rax, 0", options(nostack, readonly, preserves_flags)); };
+    }
+    
+    pub extern "x86-interrupt" fn debug_handler(_stack_frame: &mut InterruptStackFrame){
+        unsafe { core::arch::asm!(
+            "pushfq",
+            "or word ptr [rsp], 0x0100", /* set trap flag */
+            "popfq",
+            options(nostack, readonly, preserves_flags)
+        )};
+    }
+    
+    pub extern "x86-interrupt" fn nmi_handler(_stack_frame: &mut InterruptStackFrame){ 
+        let port1 = inb(0x92);
+        let port2 = inb(0x61);
+
+        if ((port1 & 0b_0001_0000) | (port2 & (0b_1000_0000 | 0b_0100_0000))) != 0{
+            shutdown!();
+        }
+    }
+    pub extern "x86-interrupt" fn breakpoint_handler(_stack_frame: &mut InterruptStackFrame){
+        /* print("breakpoint") */
+    }
+    pub extern "x86-interrupt" fn invalid_opcode_handler(_stack_frame: &mut InterruptStackFrame){
+        /* print("invalid instruction") */
+    }
+    pub extern "x86-interrupt" fn device_not_available_handler(_stack_frame: &mut InterruptStackFrame){
+        /* print("device not available") */
+    }
+    pub extern "x86-interrupt" fn double_fault_handler(_stack_frame: &mut InterruptStackFrame){
+        /* print("double fault") */
+        hlt!();
     }
 }

@@ -40,9 +40,19 @@ static mut KM: [u8; KERNEL_STACK_SIZE] =
 pub extern "C" fn _start() -> ! {
     // set up interrupt descriptor table
     let mut idt = ints::IntDescrTable64::new();
+    
     idt.append(0, ints::divide_zero_handler, 1, true);
+    idt.append(1, ints::debug_handler, 1, true);
+    idt.append(2, ints::nmi_handler, 1, false);
+    idt.append(3, ints::breakpoint_handler, 1, true);
+    idt.append(4, ints::default_handler, 1, true);
+    idt.append(5, ints::default_handler, 1, false);
+    idt.append(6, ints::invalid_opcode_handler, 1, false);
+    idt.append(7, ints::device_not_available_handler, 1, false);
+    idt.append(8, ints::double_fault_handler, 2, false);
+    idt.append(9, ints::default_handler, 1, false);
 
-    for i in 0..254{
+    for i in 0.._{
         idt.append(i, ints::default_handler, 1, true)
     }
     let idtr = ints::IDTR {

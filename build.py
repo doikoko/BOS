@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True              
+is_first_exec = True               
 
 def command(com: str, error: str = "command error"):
     try:
@@ -102,6 +102,14 @@ elif argv[1] == "new":
                     res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
 
                 return res[0:-1]
+            def extern_libs_without_one(self, index: int) -> str:
+                res = ""
+                for i in range(len(self.lib_name)):
+                    if i == index:
+                        continue
+                    res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
+                
+                return res[0:-1]
 
         libs = Libs()
 
@@ -130,7 +138,8 @@ elif argv[1] == "new":
             
             else:
                 com = " ".join([
-                    f"rustc --target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
+                    f"rustc {libs.extern_libs_without_one(i)} "
+                    f"--target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
                     f"--crate-type=rlib {libs.rust.origin[i]}",
                     f"-o {libs.rust.rust_lib[i]}"
                 ])
