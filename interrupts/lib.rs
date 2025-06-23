@@ -28,7 +28,7 @@ pub mod ints{
     pub struct IDTGate{
         pub offset_1: u16,
         pub selector: u16,
-        pub IST: u8,    /* Interrupt Stack Table offset (3 zeroes),
+        pub ist: u8,    /* Interrupt Stack Table offset (3 zeroes),
                             Gate type (interrupt (0b1110 0x0E) / trap(0b1111 0x0F)) in summ 1 byte */ 
         pub type_attributes: u8,
         pub offset_2: u16,
@@ -36,15 +36,15 @@ pub mod ints{
         pub zero: u32
     }
     impl IDTGate{
-        pub fn new(FnAddress: u64, IST_num: u8, is_gate_type_trap: bool) -> IDTGate{ /* IST_num - 1-3,
+        pub fn new(fn_address: u64, ist_num: u8, is_gate_type_trap: bool) -> IDTGate{ /* ist_num - 1-3,
         is_gate_type_trap true-trap gate, false-interrupt */
             IDTGate {
-                offset_1: FnAddress as u16,
+                offset_1: fn_address as u16,
                 selector: 0b_00001_00_0, /* 0 bit-privelege 1-2 GDT/LDT  3-7 Code index in GDT*/
-                IST: IST_num << 5,
+                ist: ist_num << 5,
                 type_attributes: (0b_111 | (is_gate_type_trap as u8) << 4) | 1, /* gate_type + 0(kernel mode) + 1 always*/
-                offset_2: (FnAddress >> 16) as u16,
-                offset_3: (FnAddress >> 32) as u32,
+                offset_2: (fn_address >> 16) as u16,
+                offset_3: (fn_address >> 32) as u32,
                 zero: 0 as u32
             }
         }
@@ -62,14 +62,15 @@ pub mod ints{
                     .assume_init()
             }
         }
+        #[inline(always)]
         pub fn append(
             &mut self,
             index: usize,
-            FnAddress: extern "x86-interrupt" fn(& mut InterruptStackFrame),
-            IST_num: u8,
+            fn_address: extern "x86-interrupt" fn(& mut InterruptStackFrame),
+            ist_num: u8,
             is_gate_type_trap: bool
         ){
-            self.gates[index] = IDTGate::new(FnAddress as u64, IST_num, is_gate_type_trap);
+            self.gates[index] = IDTGate::new(fn_address as u64, ist_num, is_gate_type_trap);
         }
     }
     macro_rules! shutdown {
@@ -83,21 +84,11 @@ pub mod ints{
             outw(0xB004, 0);
         }
     }
-    macro_rules! cli {
-        () => {
-            unsafe { core::arch::asm!("cli"); };
-        }
-    }
-    macro_rules! sti {
-        () => {
-            unsafe { core::arch::asm!("sti"); };
-        }
-    }
+    
     macro_rules! hlt {
-        () => {
-            unsafe { core::arch::asm!("hlt"); };
-        }
+        () => { unsafe { core::arch::asm!("hlt"); } }
     }
+    
     pub extern "x86-interrupt"  fn infinity_handler(_stack_frame: &mut InterruptStackFrame){
         loop{
             hlt!();
@@ -139,5 +130,21 @@ pub mod ints{
     pub extern "x86-interrupt" fn double_fault_handler(_stack_frame: &mut InterruptStackFrame){
         /* print("double fault") */
         hlt!();
+    }
+    pub extern "x86-interrupt" fn invalid_tss_handler(_stack_frame: &mut InterruptStackFrame){
+        /* print("invalid tss") */
+        loop { hlt!(); }
+    }
+    pub extern "x86-interrupt" fn coprocessor_segment_overrun_handler(_stack_frame: &mut InterruptStackFrame){
+        /* print("invalid segment") */
+    }
+    pub extern "x86-interrupt" fn general_protection_handler(_stack_frame: &mut InterruptStackFrame){
+        loop { hlt!(); }
+    }
+    pub extern "x86-interrupt" fn page_fault_handler(_stack_frame: &mut InterruptStackFrame){
+        loop { hlt!(); }
+    }
+    pub extern "x86-interrupt" fn fpu_handler(_stack_frame: &mut InterruptStackFrame){
+        loop { hlt!(); }
     }
 }

@@ -1,5 +1,5 @@
-global _outp
-global _inp
+global _outb
+global _inb
 
 section .text
 __outb:

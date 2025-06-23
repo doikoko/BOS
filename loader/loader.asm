@@ -14,6 +14,10 @@
 			; loader - 512 size bytes,
 			; then kernel will placed to 512
 loader:
+	cli
+	mov ax, 0x0003 ; set text mode
+	int 0x10
+	
 	mov si, msg
 	call PRINT
 
@@ -59,6 +63,7 @@ read_kernel:
 	mov si, success
 	call PRINT
 	
+	sti
 	jmp prot_mode_switch
 
 prot_mode_switch:
@@ -93,6 +98,14 @@ GDT32:
 	db 0x00000000
 
 prot_mode_main:
+	cli
+	mov ax, 0xB800
+	mov es, ax
+	mov byte [es:0], 'V'
+	mov byte [es:1], 0x43
+	mov byte [es:2], 'I'
+	mov byte [es:3], 0x15
+
 	mov sp, 0x8B00	; initialize stack for prot mode
 	mov bp, sp
 	mov ax, DATA_OFFSET ; initialize segment registers
@@ -100,6 +113,7 @@ prot_mode_main:
 	mov ss, ax
 	mov fs, ax
 	mov gs, ax
+	mov ax, 0xB800
 	mov es, ax
 
 	in al, 0x92	; enabling a20 line
@@ -132,33 +146,6 @@ CPUID_check:
 	test edx, 1 << 29
 	jz no_long_mode
 	
-set_up_PML4:
-	mov edi, 0x1000	; 4kb
-	mov cr3, edi	; set control register
-	xor eax, eax
-	mov ecx, 0x1000
-	rep stosd	; set 4kb to 0
-	mov edi, cr3
-
-	mov word [edi], 0x2003 ; set up pointers
-	add edi, 0x1000
-	mov word [edi], 0x3003
-	add edi, 0x1000
-	mov word [edi], 0x4003
-	add edi, 0x1000
-
-	mov ebx, 0x3
-	mov ecx, 512
-
-.set_entry:
-	mov dword [edi], ebx	; set flags to all pages
-	add ebx, 0x1000
-	add edi, 8
-	loop .set_entry
-
-	mov eax, cr4	; enable PAE-paging
-	or eax, 1 << 5
-	mov cr4, eax
 
 switch_to_64_bit:
 	mov ecx, 0xC0000080	; loading address of specific register
@@ -172,8 +159,6 @@ switch_to_64_bit:
 
 	lgdt [GDT64]
 	jmp GDT64.Code:long_mode_main
-
-
 
 %define TSS_size 104
 %define TSS_addr 0x8000
@@ -212,7 +197,7 @@ no_long_mode:
 	jmp $
 long_mode_main:
 	[BITS 64]
-	hlt
+	sti
 	mov ax, GDT64.Data
 	mov rsp, 0x20000
 	mov ds, ax                    ; Set the data segment to the A-register.

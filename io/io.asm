@@ -1,7 +1,5 @@
-extern _outp
+extern _outb
 
-global _outp
-global _inp
 global _print_c
 global _print_s
 global _move_cursor
@@ -50,18 +48,18 @@ _move_cursor:
 	
 	mov di, FB_COMMAND_PORT ; enable 2 times sended command
 	mov si, FB_HIGH_BYTE_COMMAND
-	call _outp
+	call _outb
 
 	mov di, FB_DATA_PORT
 	mov si, 0x00 ; send high bytes
-	call _outp
+	call _outb
 
 	mov di, FB_COMMAND_PORT
 	mov si, FB_LOW_BYTE_COMMAND 
-	call _outp
+	call _outb
 
 	mov di, FB_DATA_PORT
 	mov si, ax ; send low bytes
-	call _outp
+	call _outb
 
 	ret
