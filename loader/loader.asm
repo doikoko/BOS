@@ -10,9 +10,7 @@
 %define CODE_OFFSET 0x8
 %define DATA_OFFSET 0x10
 
-%define KERNEL_POS 0x1000	; 4096 bits dec, 512 bytes
-			; loader - 512 size bytes,
-			; then kernel will placed to 512
+%define KERNEL_POS 0x100000	; kernel.ld place kernel in this address
 loader:
 	cli
 	mov ax, 0x0003 ; set text mode
@@ -27,45 +25,7 @@ loader:
 	mov es, ax
 	mov ds, ax
 
-read_kernel:
-	mov bx, KERNEL_POS 
-	mov dl, 0x80	; always to int 0x13
-	mov cl, 0x02	; second sector(each 512 bytes)
-	mov ch, 0x00	; first cylinder
-	mov ah, 0x02	; read
-	mov al, 8	; 8 sectors to read
-	int 0x13
-
-	jc .error	; if CF == 1 => int error
-	cmp ah, 0	; if ah == 0 => success
-	jne .warning
-	jmp .success
-
-.error:
-	mov si, error
-	call PRINT
-	hlt
-	jmp $
-
-.warning:
-	add ah, 0x30	; func PRINT will modified ah
-	mov byte [status], ah
-
-	mov si, warning
-	call PRINT
-
-	mov si, status
-	call PRINT
-
-	jmp prot_mode_switch
-
-.success:
-	mov si, success
-	call PRINT
-	
 	sti
-	jmp prot_mode_switch
-
 prot_mode_switch:
 	[BITS 32]
 	lgdt [GDT32]
@@ -199,7 +159,7 @@ long_mode_main:
 	[BITS 64]
 	sti
 	mov ax, GDT64.Data
-	mov rsp, 0x20000
+	mov rsp, 0x110000
 	mov ds, ax                    ; Set the data segment to the A-register.
 	mov es, ax                    ; Set the extra segment to the A-register.
 	mov fs, ax                    ; Set the F-segment to the A-register.
@@ -207,7 +167,7 @@ long_mode_main:
 	mov ss, ax                    ; Set the stack segment to the A-register.
 	mov ax, GDT64.TSS - GDT64.Null
 	ltr ax
-	mov rax, 0x1000
+	mov rax, KERNEL_POS
 	jmp rax
 PRINT:
 	[BITS 16]

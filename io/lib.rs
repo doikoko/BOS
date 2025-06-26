@@ -20,7 +20,7 @@ pub mod io{
         LBROWN   = 14,
         WHITE    = 15
     }
-    extern "C"{
+    unsafe extern "C"{
         fn _print_c();
         fn _print_s(buf: *const u8, fg: u8, bg: u8, len: u8);
         fn _move_cursor(row: u8, column: u8);

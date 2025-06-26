@@ -5,9 +5,11 @@
 extern crate io;
 extern crate ports;
 extern crate interrupts;
+extern crate paging;
 
 //use ports::ports::outb;
 use interrupts::ints;
+use paging::paging::{PML4, PDPTE, PD, PT, PTentry};
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
@@ -41,9 +43,22 @@ static mut KM: [u8; KERNEL_STACK_SIZE] =
 [0; KERNEL_STACK_SIZE];
 
 // static mut IDT: ints::IntDescrTable64 = MaybeUninit::uninit().assume_init();
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
+    PML4::init();
+    let pml4: &'static mut PML4 = PML4::new();
+    pml4.set();
 
+    let pdpte: &'static mut PDPTE = PDPTE::new();
+    pdpte.set();
+
+    let pd: &'static mut PD = PD::new();
+    pd.set();
+
+    let pt: &'static mut PT = PT::new(0);
+    pt.set();
+
+    
     // set up interrupt descriptor table
     // unsafe {
     //     idt.append(0, ints::divide_zero_handler, 1, true);

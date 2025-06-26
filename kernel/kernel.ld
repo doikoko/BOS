@@ -1,4 +1,4 @@
-ENTRY(kernel)
+ENTRY(_start)
 SECTIONS
 {
 	. = 0x100000;
@@ -15,7 +15,7 @@ SECTIONS
 	{
 		*(.rodata*)		
 	}	
-	.data ALIGN(0x1000):
+	.data ALIGN(0x5000):
 	{
 		*(.data)
 	}

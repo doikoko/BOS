@@ -1,7 +1,7 @@
 #![no_std]
 
 pub mod ports{
-    extern "C"{
+    unsafe extern "C"{
         // write data to port
         fn _outb(port: u16, data: u8); /* b - byte, w - word */
         fn _outw(port: u16, data: u16);

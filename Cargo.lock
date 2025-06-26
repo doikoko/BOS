@@ -5,6 +5,10 @@ version = 4
 [[package]]
 name = "interrupts"
 version = "0.1.0"
+dependencies = [
+ "io",
+ "ports",
+]
 
 [[package]]
 name = "io"
