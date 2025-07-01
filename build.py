@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True                                
+is_first_exec = True                                   
 
 def command(com: str, error: str = "command error"):
     try:
@@ -26,8 +26,8 @@ if len(argv) != 2:
 with open(argv[0], "r+") as f:
     lines = f.readlines()
     f.seek(0)
-    if "True" in lines[7]:
-        lines[7] = lines[7].replace("True", "False")
+    if "True" in lines[9]:
+        lines[9] = lines[9].replace("True", "False")
         for line in lines:
             f.write(line)
 
@@ -74,7 +74,8 @@ elif argv[1] == "new":
             lib_name = (
                 "io",
                 "ports",
-                "interrupts"
+                "interrupts",
+                "paging"
             )
             class asm:
                 origin = (
@@ -93,12 +94,14 @@ elif argv[1] == "new":
                 origin = (
                     Path("io").joinpath("lib.rs"),
                     Path("ports").joinpath("lib.rs"), 
-                    Path("interrupts").joinpath("lib.rs")
+                    Path("interrupts").joinpath("lib.rs"),
+                    Path("paging").joinpath("lib.rs")
                 )
                 rust_lib = (
                     out_dir.joinpath("libio.rlib"),
                     out_dir.joinpath("libports.rlib"),
-                    out_dir.joinpath("libinterrupts.rlib")
+                    out_dir.joinpath("libinterrupts.rlib"),
+                    out_dir.joinpath("libpaging.rlib")
                 )
 
             @property
@@ -108,13 +111,11 @@ elif argv[1] == "new":
                     res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
 
                 return res[0:-1]
-            def extern_libs_without_one(self, index: int) -> str:
+            @property
+            def some_extern_libs(self, indexes: list[int]) -> str:
                 res = ""
-                for i in range(len(self.lib_name)):
-                    if i == index:
-                        continue
+                for i in indexes:
                     res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
-                
                 return res[0:-1]
 
         libs = Libs()
@@ -144,7 +145,8 @@ elif argv[1] == "new":
             
             else:
                 com = " ".join([
-                    f"rustc {libs.extern_libs_without_one(i)} "
+                    # io, ports
+                    f"rustc {libs.some_extern_libs[0, 1]}"
                     f"--target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
                     f"--crate-type=rlib {libs.rust.origin[i]}",
                     f"-o {libs.rust.rust_lib[i]}"

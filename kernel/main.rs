@@ -9,7 +9,7 @@ extern crate paging;
 
 //use ports::ports::outb;
 use interrupts::ints;
-use paging::paging::{PML4, PDPTE, PD, PT, PTentry};
+use paging::paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE, PD, PDPTE, PDPTES_IN_PML4, PDS_IN_PDPTE, PML4, PRESENT, USER_ACCESS, WRITABLE, WRITE_THROUGH};
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
@@ -45,20 +45,56 @@ static mut KM: [u8; KERNEL_STACK_SIZE] =
 // static mut IDT: ints::IntDescrTable64 = MaybeUninit::uninit().assume_init();
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
+    PML4::set_zeroes();
     PML4::init();
-    let pml4: &'static mut PML4 = PML4::new();
-    pml4.set();
-
-    let pdpte: &'static mut PDPTE = PDPTE::new();
-    pdpte.set();
-
-    let pd: &'static mut PD = PD::new();
-    pd.set();
-
-    let pt: &'static mut PT = PT::new(0);
-    pt.set();
-
+    let pml4 = PML4::new();
     
+    pml4.set(0);
+    let pdpte = pml4.get(0);
+    let mut current_addr: usize = 0;
+
+    // identity mapping (virt mem = phys mem) for first 2mb(pre-kernel memory)
+    pdpte.set(0);
+    let first_pd = pdpte.get(0);
+    first_pd.set(0, current_addr, PRESENT | WRITABLE | 
+        WRITE_THROUGH | DISABLE_CACHE | PAGE_SIZE | GLOBAL);
+    
+    current_addr += 0x400_000;
+
+    // init all remaining pages in first PD
+    for i in 1..ADDRESSES_IN_PD{
+        first_pd.set(i, current_addr, PRESENT | WRITABLE | 
+            USER_ACCESS | PAGE_SIZE);
+        
+        current_addr += 0x200_000;
+    }
+
+    // init all PD's without first and last
+    for i in 1..(PDS_IN_PDPTE - 1) {
+        pdpte.set(i);
+        for j in 0..ADDRESSES_IN_PD {
+            let pd = pdpte.get(i);
+            pd.set(j, current_addr, PRESENT | WRITABLE | 
+                USER_ACCESS | PAGE_SIZE);
+
+            current_addr += 0x200_000;
+        }
+    }
+    
+    // map kernel to up of virt memory
+    pdpte.set(PDS_IN_PDPTE - 1);
+    let last_pd = pdpte.get(PDS_IN_PDPTE - 1);
+    last_pd.set(ADDRESSES_IN_PD - 1, 0x200_000, PRESENT | WRITABLE | WRITE_THROUGH |
+            DISABLE_CACHE | PAGE_SIZE | GLOBAL);
+    
+    for i in 0..(ADDRESSES_IN_PD - 1){
+        last_pd.set(i, current_addr, PRESENT | WRITABLE | 
+            USER_ACCESS | PAGE_SIZE);
+        
+        current_addr += 0x200_000;
+    }
+                
+
     // set up interrupt descriptor table
     // unsafe {
     //     idt.append(0, ints::divide_zero_handler, 1, true);
