@@ -1,0 +1,10 @@
+[package]
+name = "kernel"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+io ={ path = "../io", default-features = false, features = []}
+interrupts ={ path = "../interrupts", default-features = false, features = []}
+ports ={ path = "../ports", default-features = false, features = []}
+paging ={ path = "../paging", default-features = false, features = []}

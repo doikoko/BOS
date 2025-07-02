@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True                                   
+is_first_exec = True                                     
 
 def command(com: str, error: str = "command error"):
     try:
@@ -26,8 +26,8 @@ if len(argv) != 2:
 with open(argv[0], "r+") as f:
     lines = f.readlines()
     f.seek(0)
-    if "True" in lines[9]:
-        lines[9] = lines[9].replace("True", "False")
+    if "True" in lines[7]:
+        lines[7] = lines[7].replace("True", "False")
         for line in lines:
             f.write(line)
 
@@ -57,68 +57,16 @@ elif argv[1] == "new":
     else:
         current_os = "unix"
 
+    command("cargo build -p kernel --target=x86_64-unknown-none",
+            "you haven't cargo")
     out_dir = Path("out")
     if not out_dir.exists():
         out_dir.mkdir()
 
     try:
-        kernel_rs = Path("kernel").joinpath("main.rs")
-        linker_script = Path("kernel").joinpath("kernel.ld")
-        kernel_elf = Path("iso").joinpath("boot").joinpath("kernel.elf")
-
         loader_asm = Path("loader").joinpath("loader.asm")
         loader_bin = out_dir.joinpath("loader.bin")
         loader_ko = Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko")
-
-        class Libs:
-            lib_name = (
-                "io",
-                "ports",
-                "interrupts",
-                "paging"
-            )
-            class asm:
-                origin = (
-                    Path("io").joinpath("io.asm"),
-                    Path("ports").joinpath("ports.asm") 
-                )
-                object = (
-                    out_dir.joinpath("io.o"),
-                    out_dir.joinpath("ports.o")
-                )
-                stat_lib = (
-                    out_dir.joinpath("libio.a"),
-                    out_dir.joinpath("libports.a")
-                )
-            class rust:
-                origin = (
-                    Path("io").joinpath("lib.rs"),
-                    Path("ports").joinpath("lib.rs"), 
-                    Path("interrupts").joinpath("lib.rs"),
-                    Path("paging").joinpath("lib.rs")
-                )
-                rust_lib = (
-                    out_dir.joinpath("libio.rlib"),
-                    out_dir.joinpath("libports.rlib"),
-                    out_dir.joinpath("libinterrupts.rlib"),
-                    out_dir.joinpath("libpaging.rlib")
-                )
-
-            @property
-            def extern_libs_to_kernel(self) -> str:
-                res = ""
-                for i in range(len(self.lib_name)):
-                    res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
-
-                return res[0:-1]
-            @property
-            def some_extern_libs(self, indexes: list[int]) -> str:
-                res = ""
-                for i in indexes:
-                    res += f"--extern {self.lib_name[i]}={self.rust.rust_lib[i]} "
-                return res[0:-1]
-
-        libs = Libs()
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
@@ -126,54 +74,14 @@ elif argv[1] == "new":
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
         
-        for i in range(len(libs.rust.origin)):
-            com: str
-            if i < len(libs.asm.origin):
-                command(f"nasm -f elf64 {libs.asm.origin[i]} -o {libs.asm.object[i]}",
-                    f"can't compile {libs.asm.origin[i]}, maybe you haven't nasm compiler")
-                
-                command(f"ar crs {libs.asm.stat_lib[i]} {libs.asm.object[i]}",
-                    f"error while creating static lib {libs.asm.object[i]}, maybe you haven't ar program")
-
-                com = " ".join([
-                    f"rustc --target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
-                    f"--crate-type=rlib -L{out_dir} -l static={libs.lib_name[i]} {libs.rust.origin[i]}",
-                    f"-o {libs.rust.rust_lib[i]}"
-                ])
-                command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
-                os.remove(libs.asm.stat_lib[i])
-            
-            else:
-                com = " ".join([
-                    # io, ports
-                    f"rustc {libs.some_extern_libs[0, 1]}"
-                    f"--target=x86_64-unknown-none --crate-name={libs.lib_name[i]}",
-                    f"--crate-type=rlib {libs.rust.origin[i]}",
-                    f"-o {libs.rust.rust_lib[i]}"
-                ])
-                command(com, f"error while creating rust static lib {libs.rust.rust_lib[i]}")
-
-        
-        com = " ".join([f"rustc {kernel_rs}",
-            f"--target=x86_64-unknown-none",
-            f"{libs.extern_libs_to_kernel}",
-            f"-C link-arg=-T{linker_script}",
-            f"-C link-arg=-e_start",
-            f"-o {kernel_elf}"])
-        
-        command(com, f"error while compilation {kernel_elf}")
-        
         prog = "xorriso as mkisofs"
         flags = "-R -J -no-emul-boot -boot-load-size 4"
         iso = "BOS.iso"
 
         loader_ko = Path("boot").joinpath("loader").joinpath("loader.ko")
 
-        print("\nWARNING:\nthis program use a xorriso program to generate iso image\n" \
-        "if iso not generating on your PC try to install xorriso\n " \
-        "sudo apt install xorriso\nsudo pacman -S xorriso...\n")
         command(f"{prog} -b {loader_ko} {flags} -o {iso} ./iso",
-            "error while generating ISO")
+            "error while generating ISO, maybe you haven't xorriso")
 
         shutil.rmtree(out_dir)
     except:

@@ -10,7 +10,7 @@ pub mod paging{
     const KERNEL_ADDR: usize = 0x200000;
 
     const PDPTE_SIZE: usize = 8 * PDS_IN_PDPTE; // 450 entries each 8 bytes
-    const PD_SIZE: usize = 8 * ADDRESSES_IN_PD; // size of usize in bytes
+    const PD_SIZE: usize = 8 * ADDRESSES_IN_PD; // 512 entries each 8 bytes
 
     pub const PDPTES_IN_PML4: usize = 1;
     pub const PDS_IN_PDPTE: usize = 450;
@@ -40,11 +40,8 @@ pub mod paging{
         pub fn init(){
             unsafe {
                 core::arch::asm!(
-                    "mov eax, cr4",	// enable PAE-paging
-                    "or eax, 1 << 5",
-                    "mov cr4, eax",
-                    "mov cr3, edi",  // set control register
-                    in("edi") PML4_ADDR
+                    "mov cr3, {0}",  // set control register
+                    in(reg) PML4_ADDR
                 );
             }
         }

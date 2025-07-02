@@ -1,10 +1,5 @@
 #![no_std]
-
 #![feature(abi_x86_interrupt)]
-
-extern crate io;
-extern crate ports;
-
 
 pub mod ints{
     use ports::ports::{outw, inb};
