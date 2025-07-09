@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True                                     
+is_first_exec = True                                      
 
 def command(com: str, error: str = "command error"):
     try:
@@ -14,6 +14,10 @@ def command(com: str, error: str = "command error"):
         print(error)
         print(e)
         exit(1)
+
+if not "64" in platform.architecture()[0]:
+    print("this project only for x86_64 architecture")
+    exit(0)
 
 argv = sys.argv
 
@@ -57,12 +61,9 @@ elif argv[1] == "new":
     else:
         current_os = "unix"
 
-    command("cargo build -p kernel --target=x86_64-unknown-none",
-            "you haven't cargo")
     out_dir = Path("out")
     if not out_dir.exists():
         out_dir.mkdir()
-
     try:
         loader_asm = Path("loader").joinpath("loader.asm")
         loader_bin = out_dir.joinpath("loader.bin")
@@ -73,7 +74,11 @@ elif argv[1] == "new":
         
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
+                
+        command("cargo build -p kernel --target x86_64-unknown-none",
+            "you haven't cargo")
         
+
         prog = "xorriso as mkisofs"
         flags = "-R -J -no-emul-boot -boot-load-size 4"
         iso = "BOS.iso"
@@ -83,6 +88,10 @@ elif argv[1] == "new":
         command(f"{prog} -b {loader_ko} {flags} -o {iso} ./iso",
             "error while generating ISO, maybe you haven't xorriso")
 
+        kernel_elf = out_dir.joinpath("kernel.elf")
+
+        command(f"dd if={kernel_elf} of={iso} conv=sync bs=2048 seek=100")
+
         shutil.rmtree(out_dir)
     except:
         shutil.rmtree(out_dir)
@@ -90,7 +99,6 @@ elif argv[1] == "new":
 elif argv[1] == "clean":
     files_to_remove = (
         Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
-        Path("iso").joinpath("boot").joinpath("kernel.elf"),
         Path("BOS.iso")
     )
     

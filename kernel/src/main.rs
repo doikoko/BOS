@@ -2,26 +2,27 @@
 #![no_main]
 
 // kernel of OS
-extern crate io;
-extern crate ports;
-extern crate interrupts;
-extern crate paging;
 
-//use ports::ports::outb;
-use interrupts::ints;
-use paging::paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE, PD, PDPTE, PDPTES_IN_PML4, PDS_IN_PDPTE, PML4, PRESENT, USER_ACCESS, WRITABLE, WRITE_THROUGH};
+use paging::paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE,
+    PDS_IN_PDPTE, PML4, PRESENT, USER_ACCESS, WRITABLE, WRITE_THROUGH};
 
+#[allow(dead_code)]
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
 #[allow(unused_macros)]
 macro_rules! GET_SERIAL_DATA_PORT { ( $base: expr ) => { $base }; }
+#[allow(unused_macros)]
 macro_rules! GET_SERIAL_FIFO_COMMAND_PORT { ( $base: expr ) => { $base + 2 }; }
+#[allow(unused_macros)]
 macro_rules! GET_SERIAL_LINE_COMMAND_PORT { ( $base: expr ) => { $base + 3 }; }
+#[allow(unused_macros)]
 macro_rules! GET_SERIAL_MODEM_COMMAND_PORT { ( $base: expr ) => { $base + 4 }; }
 #[allow(unused_macros)]
 macro_rules! GET_SERIAL_LINE_STATUS_PORT { ( $base: expr ) => { $base + 5 }; }
 
+#[allow(dead_code)]
 const SERIAL_PORT_ENABLE_DOUBLE_SEND: u8 = 0x80;
+#[allow(dead_code)]
 const SERIAL_PORT_SETTINGS: u8 = 0x03;
 // 7| 0 |6| 0 |5| 000 |2| 0 |1| 11 |0|
 // 0,1: 	8 bit data
@@ -29,8 +30,11 @@ const SERIAL_PORT_SETTINGS: u8 = 0x03;
 // 3,4,5:number of parity
 // 6:	break control
 // 7:	access byte
+#[allow(dead_code)]
 const FIFO_ENABLE: u8 = 0xC7;
+#[allow(dead_code)]
 const MODEM_READY_STATUS: u8 = 0x03;
+#[allow(dead_code)]
 const KERNEL_STACK_SIZE: usize = 0x1000;
 
 macro_rules! hlt {
@@ -93,8 +97,9 @@ pub extern "C" fn _start() -> ! {
         
         current_addr += 0x200_000;
     }
-                
-
+    
+    io::io::print(&"A", io::io::Colors::BLUE, io::io::Colors::RED);
+    
     // set up interrupt descriptor table
     // unsafe {
     //     idt.append(0, ints::divide_zero_handler, 1, true);

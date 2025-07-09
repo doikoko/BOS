@@ -7,14 +7,12 @@
 [ORG 0x7C00] 
 [BITS 16]
 
-%define CODE_OFFSET 0x8
-%define DATA_OFFSET 0x10
-
-%define KERNEL_POS 0x100000	; kernel.ld place kernel in this address
+boot_device: db 0
 loader:
+	mov [boot_device], dl
 	cli
 	mov ax, 0x0003 ; set text mode
-	int 0x10
+	int 0x10	; switch videocard mode to text
 	
 	mov si, msg
 	call PRINT
@@ -25,7 +23,33 @@ loader:
 	mov es, ax
 	mov ds, ax
 
+load_kernel:
+%define KERNEL_ADDR 0x200000
+%define KERNEL_SIZE 0x200000
+%assign KERNEL_POS_IN_ISO_IN_SECTIRS 0x32000 / 2048
+%assign KERNEL_SIZE_IN_SECTORS KERNEL_SIZE / 2048
+DAP:	; structure for int 0x13 arguments
+		; Disk Address Packet
+	db 0x10
+	db 0
+	dw KERNEL_SIZE_IN_SECTORS
+	dd KERNEL_ADDR
+	dd 0
+	dd KERNEL_POS_IN_ISO_IN_SECTIRS
+	dd 0 ; high bytes
+
 	sti
+
+	xor ax, ax
+	mov ds, ax
+	mov si, DAP ; load addr of DAP
+
+	mov dl, [boot_device]
+	mov ah, 0x42 ; read sectors from drive
+	
+	int 0x13
+	
+	cli
 prot_mode_switch:
 	[BITS 32]
 	lgdt [GDT32]
@@ -61,19 +85,15 @@ prot_mode_main:
 	cli
 	mov ax, 0xB800
 	mov es, ax
-	mov byte [es:0], 'V'
-	mov byte [es:1], 0x43
-	mov byte [es:2], 'I'
-	mov byte [es:3], 0x15
 
 	mov sp, 0x8B00	; initialize stack for prot mode
 	mov bp, sp
-	mov ax, DATA_OFFSET ; initialize segment registers
+	mov ax, 0x10 ; initialize segment registers
 	mov ds, ax	; for prot mode
 	mov ss, ax
 	mov fs, ax
 	mov gs, ax
-	mov ax, 0xB800
+	mov ax, 0x10
 	mov es, ax
 
 	in al, 0x92	; enabling a20 line
@@ -159,16 +179,12 @@ long_mode_main:
 	[BITS 64]
 	sti
 	mov ax, GDT64.Data
-	mov rsp, 0x110000
-	mov ds, ax                    ; Set the data segment to the A-register.
-	mov es, ax                    ; Set the extra segment to the A-register.
-	mov fs, ax                    ; Set the F-segment to the A-register.
-	mov gs, ax                    ; Set the G-segment to the A-register.
-	mov ss, ax                    ; Set the stack segment to the A-register.
+	mov rsp, 0x3FFFFF
 	mov ax, GDT64.TSS - GDT64.Null
 	ltr ax
-	mov rax, KERNEL_POS
-	jmp rax
+
+	jmp KERNEL_ADDR
+	; end of loader
 PRINT:
 	[BITS 16]
 	mov ah, 0x0E
