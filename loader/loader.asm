@@ -24,32 +24,47 @@ loader:
 	mov ds, ax
 
 load_kernel:
-%define KERNEL_ADDR 0x200000
-%define KERNEL_SIZE 0x200000
-%assign KERNEL_POS_IN_ISO_IN_SECTIRS 0x32000 / 2048
-%assign KERNEL_SIZE_IN_SECTORS KERNEL_SIZE / 2048
-DAP:	; structure for int 0x13 arguments
-		; Disk Address Packet
-	db 0x10
-	db 0
-	dw KERNEL_SIZE_IN_SECTORS
-	dd KERNEL_ADDR
-	dd 0
-	dd KERNEL_POS_IN_ISO_IN_SECTIRS
-	dd 0 ; high bytes
-
 	sti
+
+%assign KERNEL_PACKET_SIZE 0x10000
+%assign KERNEL_FIST_ADDR 0x200000
+%assign KERNEL_LAST_ADDR 0x400000
+%assign KERNEL_SIZE 0x200000
+%assign KERNEL_POS_IN_ISO_IN_SECTORS 0x32000 / 2048
+%assign KERNEL_PACKET_SIZE_IN_SECTORS KERNEL_PACKET_SIZE / 2048
+; BIOS can load only 32 sectors in 1 time, so we need to
+; load kernel next times
 
 	xor ax, ax
 	mov ds, ax
 	mov si, DAP ; load addr of DAP
 
-	mov dl, [boot_device]
+	mov dl, [boot_device]	
 	mov ah, 0x42 ; read sectors from drive
 	
+
+.interrupt_loop:
 	int 0x13
+	jc .error_loading_kernel
 	
+	; si + 8 is a pointer to KERNEL_POS_IN_ISO_IN_SCTORS
+	; in DAP we slashing this pointer at KERNEL_PACKET_SIZE_IN_SECTORS
+	; to read from new address each iteration
+	add [si + 8], KERNEL_PACKET_SIZE_IN_SECTORS
+	; si + 4 is a pointer to KERNEK_ADDR in DAP structure
+	; we loading pieces of kernel each size 0x10000 to addresses
+	; first address + piece size, filling memory 0x200000-0x400000
+	add [si + 4], KERNEL_PACKET_SIZE
+	cmp [si + 4], KERNEL_LAST_ADDR
+	jne .interrupt_loop
+
 	cli
+	jmp prot_mode_switch
+.error_loading_kernel
+	mov si, error_loading_kernel
+	call PRINT
+	hlt
+	jmp $
 prot_mode_switch:
 	[BITS 32]
 	lgdt [GDT32]
@@ -210,9 +225,15 @@ gdt_flags:
 
 msg: db "loading os, ", 0
 error: db "kernel error", 0
-warning: db "kernel warning: ", 0
-status: times 2 db 0
-success: db "success kernel", 0
+
+align 16
+DAP:	; structure for int 0x13 arguments
+		; Disk Address Packet
+	db 16
+	db 0
+	dw KERNEL_PACKET_SIZE_IN_SECTORS
+	dd KERNEL_FIRST_ADDR
+	dq KERNEL_POS_IN_ISO_IN_SECTORS
 
 times TSS_addr - ($ - $$) db 0
 section .tss

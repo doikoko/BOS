@@ -5,7 +5,11 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True                                      
+is_first_exec = False                                      
+
+print('-' * 10, "\nWARGNING:\nfor use this script you need:" \
+      "nasm compiler, cargo, rustup, xorriso(linux)")
+print('-' * 10, '\n')
 
 def command(com: str, error: str = "command error"):
     try:
@@ -36,7 +40,10 @@ with open(argv[0], "r+") as f:
             f.write(line)
 
 if is_first_exec and argv[1] == "new":
-    os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
+    try:
+        os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
+    except:
+        pass
     try:
         subprocess.run("rustup default nightly".split(" "))
     except:
@@ -94,12 +101,15 @@ elif argv[1] == "new":
 
         shutil.rmtree(out_dir)
     except:
-        shutil.rmtree(out_dir)
+       pass
+       # shutil.rmtree(out_dir)
 
 elif argv[1] == "clean":
+    command("cargo clean")
     files_to_remove = (
         Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
-        Path("BOS.iso")
+        Path("BOS.iso"),
+        Path("loader").joinpath("loader.bin")
     )
     
     for file in files_to_remove:
