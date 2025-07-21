@@ -1,3 +1,0 @@
-cargo:rustc-link-arg=-T/home/doio/Projects/BOS/kernel/kernel.ld
-cargo:rustc-link-arg=-e_start
-cargo:rustc-link-arg=-o/home/doio/Projects/BOS/out/kernel.elf

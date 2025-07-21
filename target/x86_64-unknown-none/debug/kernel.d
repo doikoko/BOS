@@ -1,1 +1,0 @@
-/home/doio/Projects/BOS/target/x86_64-unknown-none/debug/kernel: /home/doio/Projects/BOS/interrupts/src/lib.rs /home/doio/Projects/BOS/io/src/lib.rs /home/doio/Projects/BOS/kernel/build.rs /home/doio/Projects/BOS/kernel/src/main.rs /home/doio/Projects/BOS/paging/src/lib.rs /home/doio/Projects/BOS/ports/src/lib.rs
