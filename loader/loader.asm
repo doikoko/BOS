@@ -7,13 +7,16 @@
 [ORG 0x7C00] 
 [BITS 16]
 
-boot_device: db 0
 loader:
-	mov [boot_device], dl
 	cli
+	xor ax, ax
+	mov ds, ax
+
+	sti
 	mov ax, 0x0003 ; set text mode
 	int 0x10	; switch videocard mode to text
-	
+	cli
+
 	mov si, msg
 	call PRINT
 
@@ -23,13 +26,40 @@ loader:
 	mov es, ax
 	mov ds, ax
 
+unreal_mode_switch:
+	in al, 0x92	; enabling a20 line
+	or al, 0x2
+	out 0x92, al	
+
+	[BITS 32]
+	lgdt [GDT32]
+	xor eax, eax
+	or eax, 0x01
+	mov cr0, eax
+
+	jmp GDT32.Code:.next
+
+.next:
+	[BITS 32]
+	mov ax, GDT32.Data
+	mov es, ax
+	mov ds, ax
+	mov fs, ax
+	mov gs, ax
+	mov eax, cr0
+	xor eax, 0x01
+	mov cr0, eax
+
+	jmp GDT32.Code:load_kernel
 load_kernel:
 	sti
 
-%assign KERNEL_PACKET_SIZE 0x10000
-%assign KERNEL_FIST_ADDR 0x200000
-%assign KERNEL_LAST_ADDR 0x400000
-%assign KERNEL_SIZE 0x200000
+%define DAP_LENGTH 16
+%define EMPTY_BYTE 0
+%assign KERNEL_PACKET_SIZE 0x2000
+%assign KERNEL_FIRST_ADDR 0x5000
+%assign KERNEL_RESULT_LAST_ADDR 0x400000
+%assign KERNEL_LAST_ADDR 0x7000
 %assign KERNEL_POS_IN_ISO_IN_SECTORS 0x32000 / 2048
 %assign KERNEL_PACKET_SIZE_IN_SECTORS KERNEL_PACKET_SIZE / 2048
 ; BIOS can load only 32 sectors in 1 time, so we need to
@@ -37,37 +67,63 @@ load_kernel:
 
 	xor ax, ax
 	mov ds, ax
-	mov si, DAP ; load addr of DAP
 
-	mov dl, [boot_device]	
-	mov ah, 0x42 ; read sectors from drive
-	
-
+	; don't changed dl register before, it's containing 
+	; device info
+	mov bx, 0
 .interrupt_loop:
+; zeroed 0x5000-0x7000 to load part of kernel
+	mov ecx, KERNEL_PACKET_SIZE
+	xor edi, edi
+	mov es, di
+	mov edi, KERNEL_FIRST_ADDR
+	mov esi, DAP ; load addr of DAP
+	rep stosb
+	
+	xor eax, eax
+	mov ah, 0x42 ; read sectors from drive
 	int 0x13
 	jc .error_loading_kernel
-	
-	; si + 8 is a pointer to KERNEL_POS_IN_ISO_IN_SCTORS
-	; in DAP we slashing this pointer at KERNEL_PACKET_SIZE_IN_SECTORS
-	; to read from new address each iteration
-	add [si + 8], KERNEL_PACKET_SIZE_IN_SECTORS
-	; si + 4 is a pointer to KERNEK_ADDR in DAP structure
-	; we loading pieces of kernel each size 0x10000 to addresses
-	; first address + piece size, filling memory 0x200000-0x400000
-	add [si + 4], KERNEL_PACKET_SIZE
-	cmp [si + 4], KERNEL_LAST_ADDR
-	jne .interrupt_loop
 
-	cli
-	jmp prot_mode_switch
-.error_loading_kernel
-	mov si, error_loading_kernel
+	inc bx
+
+	mov byte [es:esi], DAP_LENGTH
+	mov byte [es:esi + 1], EMPTY_BYTE
+	mov word [es:esi + 2], KERNEL_PACKET_SIZE_IN_SECTORS
+	mov word [es:esi + 4], KERNEL_FIRST_ADDR
+	and word [es:esi + 6], EMPTY_BYTE
+	mov ax, bx
+	mov dx, KERNEL_PACKET_SIZE_IN_SECTORS
+	mul dx
+	mov word [es:esi + 8], ax
+	add word [es:esi + 8], KERNEL_POS_IN_ISO_IN_SECTORS
+	xor word [es:esi + 10], EMPTY_BYTE
+	xor dword [es:esi + 12], EMPTY_BYTE
+	
+	xor eax, eax
+	mov es, eax
+	mov eax, KERNEL_FIRST_ADDR
+;move packet to 0x200000 + packets address
+.copy_to_final_addr:
+	mov edi, dword [es:eax]
+	mov esi, KERNEL_RESULT_ADDR
+	mov dword [es:esi], edi 
+	add eax, 4
+	add dword [es:esi], 4
+	cmp dword [es:esi], KERNEL_RESULT_LAST_ADDR
+	jae prot_mode_switch
+	cmp ax, KERNEL_LAST_ADDR
+	jb .copy_to_final_addr
+	jmp .interrupt_loop
+
+.error_loading_kernel:
+	mov si, error
 	call PRINT
 	hlt
 	jmp $
 prot_mode_switch:
+	cli
 	[BITS 32]
-	lgdt [GDT32]
 	xor eax, eax
 	or eax, 0x01
 	mov cr0, eax
@@ -198,8 +254,15 @@ long_mode_main:
 	mov ax, GDT64.TSS - GDT64.Null
 	ltr ax
 
-	jmp KERNEL_ADDR
+	mov rax, [KERNEL_FIRST_ADDR + 24]
+	jmp [rax]
 	; end of loader
+INC_DS:
+	[BITS 16]
+	mov si, ds
+	add si, 0x1000
+	mov ds, si
+	ret 
 PRINT:
 	[BITS 16]
 	mov ah, 0x0E
@@ -225,12 +288,12 @@ gdt_flags:
 
 msg: db "loading os, ", 0
 error: db "kernel error", 0
-
+KERNEL_RESULT_ADDR: dd 0x00200000
 align 16
 DAP:	; structure for int 0x13 arguments
 		; Disk Address Packet
-	db 16
-	db 0
+	db DAP_LENGTH
+	db EMPTY_BYTE
 	dw KERNEL_PACKET_SIZE_IN_SECTORS
 	dd KERNEL_FIRST_ADDR
 	dq KERNEL_POS_IN_ISO_IN_SECTORS
