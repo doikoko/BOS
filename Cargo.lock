@@ -28,6 +28,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "loader"
+version = "0.1.0"
+dependencies = [
+ "io",
+]
+
+[[package]]
 name = "paging"
 version = "0.1.0"
 

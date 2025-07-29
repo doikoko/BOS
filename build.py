@@ -75,17 +75,21 @@ elif argv[1] == "new":
         loader_asm = Path("loader").joinpath("loader.asm")
         loader_bin = out_dir.joinpath("loader.bin")
         loader_ko = Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko")
+        
+        loader_elf = out_dir.joinpath("loader.elf")
+
+        command(f"cargo build -p loader --target x86_64-unknown-none",
+                f"error compilation loader")
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
         
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
-                
+        
         command("cargo build -p kernel --target x86_64-unknown-none",
             "you haven't cargo")
         
-
         prog = "xorriso as mkisofs"
         flags = "-R -J -no-emul-boot -boot-load-size 4"
         iso = "BOS.iso"
@@ -97,7 +101,8 @@ elif argv[1] == "new":
 
         kernel_elf = out_dir.joinpath("kernel.elf")
 
-        command(f"dd if={kernel_elf} of={iso} conv=sync bs=2048 seek=100")
+        command(f"dd if={loader_elf} of={iso} conv=sync bs=2048 seek=50")
+        command(f"dd if={kernel_elf} of={iso} conv=sync bs=2048 seek=200")
 
         shutil.rmtree(out_dir)
     except:
