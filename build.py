@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = False                                      
+is_first_exec = True                                      
 
 print('-' * 10, "\nWARGNING:\nfor use this script you need:" \
       "nasm compiler, cargo, rustup, xorriso(linux)")
@@ -106,8 +106,7 @@ elif argv[1] == "new":
 
         shutil.rmtree(out_dir)
     except:
-       pass
-       # shutil.rmtree(out_dir)
+       shutil.rmtree(out_dir)
 
 elif argv[1] == "clean":
     command("cargo clean")

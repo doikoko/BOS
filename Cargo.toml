@@ -1,2 +1,2 @@
 [workspace]
-members = ["kernel", "io", "ports", "interrupts", "paging", "loader"]
+members = ["kernel", "io", "ports", "interrupts", "paging", "loader", "dma"]

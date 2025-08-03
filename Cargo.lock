@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "dma"
+version = "0.1.0"
+dependencies = [
+ "ports",
+]
+
+[[package]]
 name = "interrupts"
 version = "0.1.0"
 dependencies = [
@@ -31,6 +38,7 @@ dependencies = [
 name = "loader"
 version = "0.1.0"
 dependencies = [
+ "dma",
  "io",
 ]
 
