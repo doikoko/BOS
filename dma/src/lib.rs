@@ -2,7 +2,17 @@
 #![allow(dead_code)]
 #![allow(private_interfaces)]
 
-use ports::ports::outb;
+// local function to write byte to register
+#[inline(always)]
+fn outb(port: u16, data: u8){
+    unsafe {
+        core::arch::asm!(
+            "out dx, al",
+            in("dx") port,
+            in("al") data
+        )
+    }
+}
 
 pub enum Result{
     Ok,
@@ -41,14 +51,14 @@ struct Registers{
     channel_page_register_brw: u16
 }
 
-// use this structure for comfortable choose correct channel
+/// use this structure for comfortable choose correct channel
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum PossibleMasterChannels{
     FloppyDisk      = 2,
     ParallelPort    = 3,
 }
-// use this structure for comfortable choose correct channel
+/// use this structure for comfortable choose correct channel
 #[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum PossibleSlaveChannels{
@@ -58,7 +68,7 @@ pub enum PossibleSlaveChannels{
     Enternet        = 7
 }
 
-// enum for mode register, DMA need to know Periphal behavior
+/// enum for mode register, DMA need to know Periphal behavior
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum TransferType{
@@ -67,8 +77,8 @@ pub enum TransferType{
     PeriphalIsReadFromMemory    = 0b10
 }
 
-// enum for mode register, if TRUE address will be automate changed
-// (incriment or decrement by IncOrDec enum)
+/// enum for mode register, if TRUE address will be automate changed
+/// (incriment or decrement by IncOrDec enum)
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum AutoChangeAddr{
@@ -76,8 +86,8 @@ pub enum AutoChangeAddr{
     True    = 1
 }
 
-// if inc each iteration address will be incremented, transfering from
-// low addr to high addr
+/// if inc each iteration address will be incremented, transfering from
+/// low addr to high addr
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum IncOrDec{
@@ -85,61 +95,62 @@ pub enum IncOrDec{
     Dec     = 1
 }
 
-// enum for set up DMA behavior
+/// enum for set up DMA behavior
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum DMAMode{
-    // transfering while DRQ demands
+    /// transfering while DRQ demands
     TransferOnDemand    = 0b00,
-    // transfering 1 iteration (byte/word - master/slave)
-    // 1 time and masked
+    /// transfering 1 iteration (byte/word - master/slave)
+    /// 1 time and masked
     SingleDMATransfer   = 0b01,
-    // transfering all block of data
+    /// transfering all block of data
     BlockDMATransfer    = 0b10,
-    // using when cascading
+    /// using when cascading
     CascadeMode         = 0b11,
 }
-// structure for work with master channels
-// contain information about channel and registers for every channel
+/// structure for work with master channels
+/// contain information about channel and registers for every channel
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub struct DmaMasterChannel<'a> {
-    // this field contains info about current channel
-    // you can transfer it to u8 if you want to match it with documentation
+    /// this field contains info about current channel
+    /// you can transfer it to u8 if you want to match it with documentation
     pub channel: &'a PossibleMasterChannels,
-    // this field contains all possible for use registers and info about them
-    // READ THE SUFFIX! b - byte w - word, w - write r - read rw - read write
-    // EXAMPLE: start_address_ww it accepts 16 bit data and register only for write
+    /// this field contains all possible for use registers and info about them
+    /// READ THE SUFFIX! b - byte w - word, w - write r - read rw - read write
+    /// EXAMPLE: start_address_ww it accepts 16 bit data and register only for write
     pub registers: Registers
 }
 
-// structure for work with slave channels
-// contain information about channel and registers for every channel
+/// structure for work with slave channels
+/// contain information about channel and registers for every channel
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub struct DmaSlaveChannel<'a> {
-    // this field contains info about current channel
-    // you can transfer it to u8 if you want to match it with documentation
+    /// this field contains info about current channel
+    /// you can transfer it to u8 if you want to match it with documentation
     pub channel: &'a PossibleSlaveChannels,
-    // this field contains all possible for use registers and info about them
-    // READ THE SUFFIX! b - byte w - word, w - write r - read rw - read write
-    // EXAMPLE: start_address_ww it accepts 16 bit data and register only for write
+    /// this field contains all possible for use registers and info about them
+    /// READ THE SUFFIX! b - byte w - word, w - write r - read rw - read write
+    /// EXAMPLE: start_address_ww it accepts 16 bit data and register only for write
     pub registers: Registers
 }
 
 pub trait Dma {
-    // if register accepts 16 bit value it firstly accepts low bytes, then high
-    // to prevent sendings firstly high bytes, this function set register for accepting low bytes data first
+    /// if register accepts 16 bit value it firstly accepts low bytes, then high
+    /// to prevent sendings firstly high bytes, this function set register for accepting low bytes data first
     fn reset_flip_flop(&self);
-    // to prevent unplanned channel work it need to masked first
+    /// to prevent unplanned channel work it need to masked first
     fn mask_channel(&self);
-    // unmask channel after mask
+    /// unmask channel after mask
     fn unmask_channel(&self);
-    // set 24 bit addr it RAM for transfering
+    /// set 24 bit addr it RAM for transfering
     fn set_start_addr(&self, high_bytes_addr: u8, low_bytes_addr: u16);
-    // set repeats in bytes/words (master/slave channel) of incrementing address
+    /// set repeats in bytes/words (master/slave channel) of incrementing address
+    /// WARNING: function automatically decrementing value
     fn set_repeats(&self, repeats: u16);
-    // set mode for dma work using enum "modes"
+    /// set mode for dma work using enum "modes"
     fn set_mod(&self, 
         transfer_type: TransferType,
         auto_change_addr: AutoChangeAddr,
@@ -149,7 +160,7 @@ pub trait Dma {
 }
 
 impl<'a> DmaMasterChannel<'a>{
-    // generates new DMA master channel
+    /// generates new DMA master channel
     #[inline(always)]
     pub fn new(channel_number: &'a PossibleMasterChannels) -> Self{
         Self { 
@@ -192,9 +203,10 @@ impl<'a> Dma for DmaMasterChannel<'a> {
         outb(self.registers.channel_page_register_brw, high_bytes_addr);
     }
     #[inline(always)]
-    fn set_repeats(&self, repeats: u16){
-        outb(self.registers.start_address_ww, (repeats & 0x00FF) as u8);
-        outb(self.registers.start_address_ww, ((repeats & 0xFF00) >> 8) as u8);        
+    fn set_repeats(&self, mut repeats: u16){
+        repeats -= 1;
+        outb(self.registers.count_register_ww, (repeats & 0x00FF) as u8);
+        outb(self.registers.count_register_ww, ((repeats & 0xFF00) >> 8) as u8);        
     }
     #[inline(always)]
     fn set_mod(&self, 
@@ -212,7 +224,7 @@ impl<'a> Dma for DmaMasterChannel<'a> {
 }
 
 impl<'a> DmaSlaveChannel<'a>{
-    // generates new DMA slave channel
+    /// generates new DMA slave channel
     #[inline(always)]
     pub fn new(channel_number: &'a PossibleSlaveChannels) -> Self{
         Self { 
@@ -260,9 +272,10 @@ impl<'a> Dma for DmaSlaveChannel<'a> {
         outb(self.registers.channel_page_register_brw, high_bytes_addr);
     }
     #[inline(always)]
-    fn set_repeats(&self, repeats: u16){
-        outb(self.registers.start_address_ww, (repeats & 0x00FF) as u8);
-        outb(self.registers.start_address_ww, ((repeats & 0xFF00) >> 8) as u8);        
+    fn set_repeats(&self, mut repeats: u16){
+        repeats -= 1;
+        outb(self.registers.count_register_ww, (repeats & 0x00FF) as u8);
+        outb(self.registers.count_register_ww, ((repeats & 0xFF00) >> 8) as u8);        
     }
     #[inline(always)]
     fn set_mod(&self, 

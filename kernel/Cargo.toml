@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-io ={ path = "../io", default-features = false, features = []}
-interrupts ={ path = "../interrupts", default-features = false, features = []}
-ports ={ path = "../ports", default-features = false, features = []}
-paging ={ path = "../paging", default-features = false, features = []}
+io ={ path = "../io" }
+interrupts ={ path = "../interrupts" }
+ports ={ path = "../ports" }
+paging ={ path = "../paging" }
+dma ={ path = "../dma" }
+atapi ={ path = "../atapi" }

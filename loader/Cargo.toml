@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 io ={ path = "../io" }
-dma  ={ path = "../dma" }
+atapi = { path = "../atapi" }
+ports ={ path = "../ports" }

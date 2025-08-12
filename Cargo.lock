@@ -3,6 +3,10 @@
 version = 4
 
 [[package]]
+name = "atapi"
+version = "0.1.0"
+
+[[package]]
 name = "dma"
 version = "0.1.0"
 dependencies = [
@@ -28,6 +32,8 @@ dependencies = [
 name = "kernel"
 version = "0.1.0"
 dependencies = [
+ "atapi",
+ "dma",
  "interrupts",
  "io",
  "paging",
@@ -38,8 +44,9 @@ dependencies = [
 name = "loader"
 version = "0.1.0"
 dependencies = [
- "dma",
+ "atapi",
  "io",
+ "ports",
 ]
 
 [[package]]

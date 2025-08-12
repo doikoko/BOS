@@ -3,8 +3,9 @@
 
 // kernel of OS
 
-use paging::paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE,
+use paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE,
     PDS_IN_PDPTE, PML4, PRESENT, USER_ACCESS, WRITABLE, WRITE_THROUGH};
+use io::{Colors, print};
 
 #[allow(dead_code)]
 const SERIAL_COM1_BASE: u16 = 0x3F80;
@@ -98,7 +99,7 @@ pub extern "C" fn _start() -> ! {
         current_addr += 0x200_000;
     }
     
-    io::io::print(&"A", io::io::Colors::BLUE, io::io::Colors::RED);
+    print(&"A", Colors::BLUE, Colors::RED);
     
     // set up interrupt descriptor table
     // unsafe {
