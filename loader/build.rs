@@ -12,7 +12,8 @@ fn main(){
     
     let link_args = [
         format!("-o{}", loader_elf.display()),
-        format!("-T{}", loader_ld.display())
+        format!("-T{}", loader_ld.display()),
+        format!("--no-pie")
     ];
 
     for arg in link_args{

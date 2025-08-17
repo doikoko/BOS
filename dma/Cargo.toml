@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 ports = {path = "../ports"}
+
+[lib]
+crate-type = ["rlib"]

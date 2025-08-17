@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(abi_x86_interrupt)]
+#![cfg(target_pointer_width = "64")]
 
 use ports::{outw, inb};
 use core::mem::MaybeUninit;

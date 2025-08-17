@@ -6,13 +6,14 @@
 
 [ORG 0x7C00] 
 [BITS 16]
-
 loader:
-	mov [boot_device], dl
-
-	cli
-	xor ax, ax
+	xor ax, ax	
+	mov ss, ax
+	mov es, ax
 	mov ds, ax
+	mov sp, 0x3FFF
+	
+	mov [boot_device], dl
 
 	sti
 	mov ax, 0x0003 ; set text mode
@@ -22,123 +23,179 @@ loader:
 	mov si, msg
 	call PRINT
 
-	mov sp, 0x7BFF
-	xor ax, ax	
-	mov ss, ax
-	mov es, ax
-	mov ds, ax
 
-unreal_mode_switch:
+.loading_rust_part_of_loader:
+	xor ax, ax
+	mov di, 0x4000
+	mov cx, 0x1000
+	cld
+	rep stosw
+
+	sti
+	mov si, DAP
+	mov dl, [boot_device]
+	mov ah, 0x42
+	int 0x13
+	jc .error_loading_kernel
+	jmp protected_mode_switch
+.error_loading_kernel:
+	mov si, error
+	call PRINT
+.LOOP1:
+	hlt
+	jmp .LOOP1
+protected_mode_switch:
+	cli
 	in al, 0x92	; enabling a20 line
 	or al, 0x2
 	out 0x92, al	
 
-	[BITS 32]
-	lgdt [GDT32]
+	lgdt [GDT32.Pointer]
 	xor eax, eax
-	or eax, 0x01
+	or al, 0x01
 	mov cr0, eax
-	jmp GDT32.Code:prot_mode_main
+	jmp dword GDT32.Code:prot_mode_main
 
 prot_mode_main:
+	[BITS 32]
 	cli
-	mov ax, 0xB800
-	mov es, ax
-
-	mov sp, 0x8B00	; initialize stack for prot mode
-	mov bp, sp
+	mov esi, error
+	call PRINT32
 	mov ax, 0x10 ; initialize segment registers
 	mov ds, ax	; for prot mode
 	mov ss, ax
 	mov fs, ax
 	mov gs, ax
-	mov ax, 0x10
 	mov es, ax
+	mov esp, 0x3FFF	; initialize stack for prot mode
+	mov ebp, esp
 
-	in al, 0x92	; enabling a20 line
-	or al, 0x2
-	out 0x92, al	
-
-CPUID_check:
-	pushfd	; if 0x00200000 in EFLAGS is modifable
-	pushfd	; that processor support CPUID
-	xor dword [esp], 0x00200000
-	popfd
-	pushfd
-	pop eax
-	xor eax, [esp]
-	popfd
-	and eax, 0x00200000
-	
-	cmp eax, 0
-	jne no_long_mode
-
+long_mode_support_check:
 	mov eax, 0x80000000
 	cpuid
 	cmp eax, 0x80000001	; if eax bellow => long mode 
 				; not supported
-	jb no_long_mode
+	jb .no_long_mode
 
 	mov eax, 0x80000001	; if bit edx 29 = 0 => long mode
 				; not supported
 	cpuid			; return value to eax:edx
-	test edx, 1 << 29
-	jz no_long_mode
+	test edx, 1 << 29 ; if equal => long mode not supported
 	
+	jne jump_to_rust
 
-switch_to_64_bit:
-	mov ecx, 0xC0000080	; loading address of specific register
-	rdmsr
-	or eax, 1 << 8
-	wrmsr			; writing data to specific register
-
-	mov eax, cr0
-	or eax, 1 << 31
-	mov cr0, eax
-
-	lgdt [GDT64]
-	jmp GDT64.Code:long_mode_main
-
-no_long_mode:
+.no_long_mode:
+	mov esi, long_mode_unsupported
+	call PRINT32
+.LOOP2:
 	hlt
-	jmp $
-long_mode_main:
-	[BITS 64]
-	cli
-	mov ax, GDT64.Data
-	mov rsp, 0x3FFFFF
-	mov ax, GDT64.TSS - GDT64.Null
-	ltr ax
+	jmp .LOOP2
 
-%define KERNEL_FIRST_ADDR 0x200000
-	mov rax, [KERNEL_FIRST_ADDR + 24]
-	jmp [rax]
+jump_to_rust:
+%assign RUST_LOADER_ENTRY 0x4000
+	xor eax, eax
+	mov eax, RUST_LOADER_ENTRY
+	mov ecx, letters_count
+	jmp eax
+
+;switch_to_64_bit:
+;	mov ecx, 0xC0000080	; loading address of specific register
+;	rdmsr
+;	or eax, 1 << 8
+;	wrmsr			; writing data to specific register
+;	
+;	mov eax, cr4
+;	or eax, 1 << 5 ; enabling paging
+;	mov cr4, eax
+;
+;	mov eax, cr0
+;	or eax, 1 << 31
+;	mov cr0, eax
+;
+;	lgdt [GDT64.Pointer]
+;	jmp GDT64.Code:long_mode_main
+;
+;long_mode_main:
+;	[BITS 64]
+;	cli
+;	mov ax, GDT64.Data
+;	mov rsp, 0x3FFF
+;	mov ax, GDT64.TSS - GDT64.Null
+;	ltr ax
+
 	; end of loader
 PRINT:
+%macro XOR_DS 0
+	xor ax, ax
+	mov ds, ax
+%endmacro
+
+%macro SET_DS 0
+	mov ax, 0xB800
+	mov ds, ax
+%endmacro
+
 	[BITS 16]
-	mov ah, 0x0E
-	mov al, [si]
+	XOR_DS
+	mov byte bl, [si]
+	xor ax, ax
+	mov byte al, [letters_count]
+	mov di, ax
+	SET_DS
+.LOOP3:
+	mov byte [di], bl
+	inc di,
+	mov byte [di], 0
+	or byte [di], 0x0F
+	inc di
 	inc si
-	int 0x10
-	cmp al, 0
-	jne PRINT
+
+	XOR_DS
+	mov byte bl, [si]
+	SET_DS
+	cmp byte bl, 0
+	jne .LOOP3
+
+	XOR_DS
+	mov ax, di
+	mov byte [letters_count], al
+	ret
+
+PRINT32:
+	[BITS 32]
+	xor eax, eax
+	mov byte al, [letters_count]
+	add eax, 0xB8000
+	mov byte bl, [esi]
+.LOOP4:
+	mov byte [eax], bl
+	inc eax,
+	mov byte [eax], 0
+	or byte [eax], 0x0F
+	inc eax
+	inc esi
+	mov byte bl, [esi]
+	cmp byte bl, 0 
+	jne .LOOP4
+	mov byte [letters_count], al
 	ret
 
 boot_device: db 0
-
 GDT32:
 .Null: equ $ - GDT32       
 	dq 0                   
 
 .Code: equ $ - GDT32       
-	dd 0xFFFF              
-	db 0                   
+	dw 0xFFFF	; limit
+	dw 0x0000	; base
+	db 0        ; base       
 	db PRESENT | NOT_SYS | EXEC | RW  
 	db GRAN_4K | SZ_32 | 0xF  
-	db 0                   
+	db 0        ; base
 
 .Data: equ $ - GDT32       
-	dd 0xFFFF              
+	dw 0xFFFF
+	dw 0x0000
 	db 0                   
 	db PRESENT | NOT_SYS | RW  
 	db GRAN_4K | SZ_32 | 0xF   
@@ -147,12 +204,9 @@ GDT32:
 .Pointer:                  
 	dw $ - GDT32 - 1       
 	dd GDT32               
-	db 0x00000000
-	db 0x00000000
 
 %define TSS_size 104
 %define TSS_addr 0x8000
-section .gdt
 align 8
 GDT64:
 .Null: equ $ - GDT64
@@ -182,6 +236,10 @@ GDT64:
 	dw $ - GDT64 - 1
 	dq GDT64
 
+msg: db "loading os / ", 0
+error: db "kernel error / ", 0
+long_mode_unsupported: db "long mode unsupported / ", 0
+letters_count: db 0
 
 gdt_flags:
 .access:
@@ -196,26 +254,22 @@ gdt_flags:
 	SZ_32         equ 1 << 6      ; 32-bits segment (1) / 16-bits (0)
 	LONG_MODE     equ 1 << 5      ; 64-bits segment
 
-msg: db "loading os, ", 0
-error: db "kernel error", 0
-
 
 %define DAP_LENGTH 16
 %define EMPTY_BYTE 0
-%assign KERNEL_PACKET_SIZE 0x2000
-%assign KERNEL_FIRST_ADDR 0x5000
-%assign KERNEL_RESULT_LAST_ADDR 0x400000
-%assign KERNEL_LAST_ADDR 0x7000
-%assign KERNEL_POS_IN_ISO_IN_SECTORS 0x32000 / 2048
-%assign KERNEL_PACKET_SIZE_IN_SECTORS KERNEL_PACKET_SIZE / 2048
-align 16
+%assign TRANSFER_SIZE 0x2000
+%assign RUST_LOADER_START 0x4000
+%assign ENTRY_POINT_POS_IN_ISO_IN_SECTORS	50 + (0x1000 / 2048) ; 50 check in build.py, 
+															; 0x1000 offset of entry point
+%assign TRANSFER_SIZE_IN_SECTORS TRANSFER_SIZE / 2048
+
 DAP:	; structure for int 0x13 arguments
 		; Disk Address Packet
 	db DAP_LENGTH
 	db EMPTY_BYTE
-	dw KERNEL_PACKET_SIZE_IN_SECTORS
-	dd KERNEL_FIRST_ADDR
-	dq KERNEL_POS_IN_ISO_IN_SECTORS
+	dw TRANSFER_SIZE_IN_SECTORS
+	dd RUST_LOADER_START
+	dd ENTRY_POINT_POS_IN_ISO_IN_SECTORS
 
 times TSS_addr - ($ - $$) db 0
 section .tss

@@ -4,4 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ports ={ path="../ports" , default-features = false, features = []}
+ports ={ path="../ports"}
+
+[lib]
+crate-type = ["rlib"]

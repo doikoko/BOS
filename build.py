@@ -5,11 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = False                                      
-
-print('-' * 10, "\nWARGNING:\nfor use this script you need:" \
-      "nasm compiler, cargo, rustup, xorriso(linux), qemu")
-print('-' * 10, '\n')
+is_first_exec = False   
 
 def command(com: str, error: str = "command error"):
     try:
@@ -18,6 +14,17 @@ def command(com: str, error: str = "command error"):
         print(error)
         print(e)
         exit(1)
+        shutil.rmtree(out_dir)
+
+print('-' * 10, "\nWARGNING:\nfor use this script you need:" \
+      "nasm compiler, cargo, rustup, xorriso(linux), qemu")
+print('-' * 10, '\n')
+
+out_dir = Path("out")
+
+if not out_dir.exists():
+    out_dir.mkdir()
+
 
 if not "64" in platform.architecture()[0]:
     print("this project only for x86_64 architecture")
@@ -32,37 +39,37 @@ if len(argv) != 2:
     
     exit(1)
 
-with open(argv[0], "r+") as f:
-    lines = f.readlines()
-    f.seek(0)
-    if "True" in lines[7]:
-        lines[7] = lines[7].replace("True", "False")
-        for line in lines:
-            f.write(line)
+if argv[1] == "new":
+    if is_first_exec:
+        try:
+            os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
+        except:
+            pass
+        try:
+            subprocess.run("rustup default nightly".split(" "))
+        except:
+            command("rustup install nightly")
+            command("rustup default nightly")
+        
+        target = Path("loader").joinpath("i686-unknown-none.json")
+        
+        command("rustup target add x86_64-unknown-none")
+        command("rustup component add rust-src")
+        
+        with open(argv[0], "r+") as f:
+            lines = f.readlines()
+            f.seek(0)
+            if "True" in lines[7]:
+                lines[7] = lines[7].replace("True", "False")
+                for line in lines:
+                    f.write(line)
 
-if is_first_exec and argv[1] == "new":
-    try:
-        os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
-    except:
-        pass
-    try:
-        subprocess.run("rustup default nightly".split(" "))
-    except:
-        command("rustup install nightly")
-        command("rustup default nightly")
-
-    command("rustup target add x86_64-unknown-none")
-    command("rustup component add rust-src")
-elif argv[1] == "new":
     current_os: str
     if "Windows" in platform.platform():
         current_os = "windows"
     else:
         current_os = "unix"
 
-    out_dir = Path("out")
-    if not out_dir.exists():
-        out_dir.mkdir()
     try:
         loader_asm = Path("loader").joinpath("loader.asm")
         loader_bin = out_dir.joinpath("loader.bin")
@@ -70,8 +77,14 @@ elif argv[1] == "new":
         
         loader_elf = out_dir.joinpath("loader.elf")
 
-        command(f"cargo build -p loader --target x86_64-unknown-none",
-                f"error compilation loader")
+        loader_target = Path("loader").joinpath("i686-unknown-none.json")
+        kernel_target = "x86_64-unknown-none"
+        if is_first_exec:
+            command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
+                    f"error compilation loader")
+        else:
+            command(f"cargo build -p loader --release --target {loader_target}",
+                    f"error compilation loader")
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
@@ -79,8 +92,8 @@ elif argv[1] == "new":
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
         
-        command("cargo build -p kernel --target x86_64-unknown-none",
-            "you haven't cargo")
+        command(f"cargo build -p kernel --release --target {kernel_target}",
+            f"you haven't cargo")
         
         prog = "xorriso as mkisofs"
         flags = "-R -J -no-emul-boot -boot-load-size 4"
@@ -94,18 +107,17 @@ elif argv[1] == "new":
         kernel_elf = out_dir.joinpath("kernel.elf")
 
         command(f"dd if={loader_elf} of={iso} conv=sync bs=2048 seek=50")
-        command(f"dd if={kernel_elf} of={iso} conv=sync bs=2048 seek=200")
-
+        command(f"dd if={kernel_elf} of={iso} conv=sync bs=2048 seek=64")
+        
         shutil.rmtree(out_dir)
     except:
-       shutil.rmtree(out_dir)
+        shutil.rmtree(out_dir)
 
 elif argv[1] == "clean":
     command("cargo clean")
     files_to_remove = (
         Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
         Path("BOS.iso"),
-        Path("loader").joinpath("loader.bin")
     )
     
     for file in files_to_remove:

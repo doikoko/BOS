@@ -1,4 +1,5 @@
 #![no_std]
+#![cfg(target_pointer_width = "64")]
 
 /* PML4:|0x11000 - 0x12000|  PDPTE:|0x12000 - 0x13000|
 PD:|0x13000 - 0x1d5000|, reserved:|0x1d5000 - 0x200000| */
@@ -52,8 +53,8 @@ impl PML4{
             for _ in 0..((KERNEL_ADDR - PML4_ADDR) / 8){
                 *ptr = 0;
                 ptr = ptr.add(1);
-            }
-        }
+            };
+        };
     }
     // create new PML4 in first PML4_ADDR address
     #[inline(always)]
@@ -74,6 +75,20 @@ impl PML4{
         let pdpte = unsafe { &mut *(((self.pdptes[index] & ALL_FLAGS) >> 12 ) as *mut PDPTE) };
 
         pdpte
+    }
+    pub fn enable_pae(&self){
+        let value: u64 = 1 << 31;
+        unsafe{
+            core::arch::asm!(
+                "mov rax, cr4",
+                "or rax, 1 << 5",
+                "mov cr4, rax",
+                "mov rax, cr0",
+                "or rax, {}",
+                "mov cr0, rax",
+                in(reg) value
+            );
+        };
     }
 }
 #[repr(C)]

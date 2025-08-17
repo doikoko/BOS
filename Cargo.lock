@@ -29,25 +29,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "kernel"
-version = "0.1.0"
-dependencies = [
- "atapi",
- "dma",
- "interrupts",
- "io",
- "paging",
- "ports",
-]
-
-[[package]]
 name = "loader"
 version = "0.1.0"
-dependencies = [
- "atapi",
- "io",
- "ports",
-]
 
 [[package]]
 name = "paging"

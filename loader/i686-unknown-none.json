@@ -1,0 +1,36 @@
+{
+  "abi-return-struct-as-int": true,
+  "allows-weak-linkage": false,
+  "arch": "x86",
+  "binary-format": "elf",
+  "cpu": "i686",
+  "crt-objects-fallback": "false",
+  "data-layout": "e-m:e-p:32:32-p270:32:32-p271:32:32-p272:64:64-i128:128-f64:32:64-f80:32-n8:16:32-S128",
+  "disable-redzone": true,
+  "dll-tls-export": false,
+  "exe-suffix": ".elf",
+  "features": "-mmx,-sse,+soft-float",
+  "linker": "rust-lld",
+  "linker-flavor": "gnu-lld",
+  "linker-is-gnu": false,
+  "lld-flavor": "link",
+  "llvm-target": "i686-unknown-none",
+  "max-atomic-width": 64,
+  "metadata": {
+    "description": "32-bit x86 bare metal",
+    "host_tools": false,
+    "std": null,
+    "tier": 2
+  },
+  "panic-strategy": "abort",
+  "rustc-abi": "x86-softfloat",
+  "singlethread": true,
+  "split-debuginfo": "packed",
+  "stack-probes": {
+    "kind": "call"
+  },
+  "supported-split-debuginfo": [
+    "packed"
+  ],
+  "target-pointer-width": "32"
+}

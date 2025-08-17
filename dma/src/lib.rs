@@ -1,9 +1,9 @@
 #![no_std]
 #![allow(dead_code)]
 #![allow(private_interfaces)]
+#![cfg(target_pointer_width = "64")]
 
 // local function to write byte to register
-#[inline(always)]
 fn outb(port: u16, data: u8){
     unsafe {
         core::arch::asm!(
@@ -161,8 +161,7 @@ pub trait Dma {
 
 impl<'a> DmaMasterChannel<'a>{
     // generates new DMA master channel
-    #[inline(always)]
-    pub fn new(channel_number: &'a PossibleMasterChannels) -> Self{
+        pub fn new(channel_number: &'a PossibleMasterChannels) -> Self{
         Self { 
             channel: channel_number, 
             registers: Registers { 
@@ -184,32 +183,26 @@ impl<'a> DmaMasterChannel<'a>{
     }    
 }
 impl<'a> Dma for DmaMasterChannel<'a> {
-    #[inline(always)]
-    fn mask_channel(&self) {
+        fn mask_channel(&self) {
         outb(self.registers.single_channel_mask_register_bw, 0b100 | *self.channel as u8);
     }
-    #[inline(always)]
-    fn unmask_channel(&self) {
+        fn unmask_channel(&self) {
         outb(self.registers.single_channel_mask_register_bw, 0b000 | *self.channel as u8);
     }
-    #[inline(always)]
-    fn reset_flip_flop(&self) {
+        fn reset_flip_flop(&self) {
         outb(self.registers.flip_flop_reset_register_bw, 0xFF);
     }
-    #[inline(always)]
-    fn set_start_addr(&self, high_bytes_addr: u8, low_bytes_addr: u16){
+        fn set_start_addr(&self, high_bytes_addr: u8, low_bytes_addr: u16){
         outb(self.registers.start_address_ww, (low_bytes_addr & 0x00FF) as u8);
         outb(self.registers.start_address_ww, ((low_bytes_addr & 0xFF00) >> 8) as u8);
         outb(self.registers.channel_page_register_brw, high_bytes_addr);
     }
-    #[inline(always)]
-    fn set_repeats(&self, mut repeats: u16){
+        fn set_repeats(&self, mut repeats: u16){
         repeats -= 1;
         outb(self.registers.count_register_ww, (repeats & 0x00FF) as u8);
         outb(self.registers.count_register_ww, ((repeats & 0xFF00) >> 8) as u8);        
     }
-    #[inline(always)]
-    fn set_mod(&self, 
+        fn set_mod(&self, 
             transfer_type: TransferType,
             auto_change_addr: AutoChangeAddr,
             inc_or_dec: IncOrDec,
@@ -225,8 +218,7 @@ impl<'a> Dma for DmaMasterChannel<'a> {
 
 impl<'a> DmaSlaveChannel<'a>{
     // generates new DMA slave channel
-    #[inline(always)]
-    pub fn new(channel_number: &'a PossibleSlaveChannels) -> Self{
+        pub fn new(channel_number: &'a PossibleSlaveChannels) -> Self{
         Self { 
             channel: channel_number, 
             registers: Registers { 
@@ -253,32 +245,26 @@ impl<'a> DmaSlaveChannel<'a>{
     }
 }
 impl<'a> Dma for DmaSlaveChannel<'a> {
-    #[inline(always)]
-    fn mask_channel(&self) {
+        fn mask_channel(&self) {
         outb(self.registers.single_channel_mask_register_bw, 0b100 | *self.channel as u8);
     }
-    #[inline(always)]
-    fn unmask_channel(&self) {
+        fn unmask_channel(&self) {
         outb(self.registers.single_channel_mask_register_bw, 0b000 | *self.channel as u8);
     }
-    #[inline(always)]
-    fn reset_flip_flop(&self) {
+        fn reset_flip_flop(&self) {
         outb(self.registers.flip_flop_reset_register_bw, 0xFF);
     }
-    #[inline(always)]
-    fn set_start_addr(&self, high_bytes_addr: u8, low_bytes_addr: u16){
+        fn set_start_addr(&self, high_bytes_addr: u8, low_bytes_addr: u16){
         outb(self.registers.start_address_ww, (low_bytes_addr & 0x00FF) as u8);
         outb(self.registers.start_address_ww, ((low_bytes_addr & 0xFF00) >> 8) as u8);
         outb(self.registers.channel_page_register_brw, high_bytes_addr);
     }
-    #[inline(always)]
-    fn set_repeats(&self, mut repeats: u16){
+        fn set_repeats(&self, mut repeats: u16){
         repeats -= 1;
         outb(self.registers.count_register_ww, (repeats & 0x00FF) as u8);
         outb(self.registers.count_register_ww, ((repeats & 0xFF00) >> 8) as u8);        
     }
-    #[inline(always)]
-    fn set_mod(&self, 
+        fn set_mod(&self, 
             transfer_type: TransferType,
             auto_change_addr: AutoChangeAddr,
             inc_or_dec: IncOrDec,

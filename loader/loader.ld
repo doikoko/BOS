@@ -1,30 +1,33 @@
 ENTRY(loader)
 
 SECTIONS {
-    . = 0x1000;
+    . = 0x0;
     .loader : {
         KEEP(*(loader.loader))
         *(.loader*) 
     }
 
-    . = ALIGN(0x1000);
+    . = 0x790; /* because .loader section ~ 0x300bytes and addresses is pow of 2*/
     .text : {
         *(.text*)
     }
 
-    . = ALIGN(0x1000);
+    . = 0xe10; /* .text section ~ 0x600bytes */
     .rodata : {
         *(.rodata*)
     }
 
-    . = ALIGN(0x1000);
+    . = 0xf04; /* .rodata ~ 0xd0bytes */
     .data : {
-        *(.data)
+        *(.data*)
     }
 
-    . = ALIGN(0x1000);
+    . = 0xf81; /* .data ~ 0x10 bytes */
     .bss : {
         *(.bss)
         *(COMMON)
+    }
+    /DISCARD/ : {
+        *(.comment)
     }
 }

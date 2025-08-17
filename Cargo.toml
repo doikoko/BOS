@@ -1,11 +1,19 @@
 [workspace]
 members = [
-    "kernel",
+    "loader",
     "io",
     "ports",
     "interrupts",
     "paging",
-    "loader",
     "dma",
     "atapi"
 ]
+
+resolver = "3"
+
+[profile.release]
+lto = true
+opt-level = "z" 
+codegen-units = 1
+strip = "symbols"
+panic = "abort"

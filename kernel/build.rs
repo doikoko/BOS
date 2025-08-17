@@ -13,8 +13,8 @@ fn main(){
 
     let link_args = [
         format!("-T{}", linker_script.display()),
-        format!("-e_start"),
-        format!("-o{}", kernel_elf.display())
+        format!("-o{}", kernel_elf.display()),
+        format!("--no-pie")
     ];
     
     for arg in link_args{

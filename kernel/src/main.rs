@@ -1,29 +1,23 @@
 #![no_std]
 #![no_main]
-
+#![allow(dead_code)]
+#![allow(unused_macros)]
+#![cfg(target_pointer_width = "64")]
 // kernel of OS
 
 use paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE,
     PDS_IN_PDPTE, PML4, PRESENT, USER_ACCESS, WRITABLE, WRITE_THROUGH};
 use io::{Colors, print};
 
-#[allow(dead_code)]
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
-#[allow(unused_macros)]
 macro_rules! GET_SERIAL_DATA_PORT { ( $base: expr ) => { $base }; }
-#[allow(unused_macros)]
 macro_rules! GET_SERIAL_FIFO_COMMAND_PORT { ( $base: expr ) => { $base + 2 }; }
-#[allow(unused_macros)]
 macro_rules! GET_SERIAL_LINE_COMMAND_PORT { ( $base: expr ) => { $base + 3 }; }
-#[allow(unused_macros)]
 macro_rules! GET_SERIAL_MODEM_COMMAND_PORT { ( $base: expr ) => { $base + 4 }; }
-#[allow(unused_macros)]
 macro_rules! GET_SERIAL_LINE_STATUS_PORT { ( $base: expr ) => { $base + 5 }; }
 
-#[allow(dead_code)]
 const SERIAL_PORT_ENABLE_DOUBLE_SEND: u8 = 0x80;
-#[allow(dead_code)]
 const SERIAL_PORT_SETTINGS: u8 = 0x03;
 // 7| 0 |6| 0 |5| 000 |2| 0 |1| 11 |0|
 // 0,1: 	8 bit data
@@ -31,23 +25,15 @@ const SERIAL_PORT_SETTINGS: u8 = 0x03;
 // 3,4,5:number of parity
 // 6:	break control
 // 7:	access byte
-#[allow(dead_code)]
 const FIFO_ENABLE: u8 = 0xC7;
-#[allow(dead_code)]
 const MODEM_READY_STATUS: u8 = 0x03;
-#[allow(dead_code)]
-const KERNEL_STACK_SIZE: usize = 0x1000;
 
 macro_rules! hlt {
     () => { unsafe { core::arch::asm!("hlt"); } }
 }
 
-#[allow(dead_code)]
-#[unsafe(link_section = ".bss")] 
-static mut KM: [u8; KERNEL_STACK_SIZE] = 
-[0; KERNEL_STACK_SIZE];
-
 // static mut IDT: ints::IntDescrTable64 = MaybeUninit::uninit().assume_init();
+#[unsafe(link_section = "kernel.kernel")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
     PML4::set_zeroes();
@@ -98,7 +84,8 @@ pub extern "C" fn _start() -> ! {
         
         current_addr += 0x200_000;
     }
-    
+
+    pml4.enable_pae(); 
     print(&"A", Colors::BLUE, Colors::RED);
     
     // set up interrupt descriptor table
