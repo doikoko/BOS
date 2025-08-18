@@ -20,7 +20,7 @@ loader:
 	int 0x10	; switch videocard mode to text
 	cli
 
-	mov si, msg
+	mov di, msg
 	call PRINT
 
 
@@ -39,7 +39,7 @@ loader:
 	jc .error_loading_kernel
 	jmp protected_mode_switch
 .error_loading_kernel:
-	mov si, error
+	mov di, error
 	call PRINT
 .LOOP1:
 	hlt
@@ -59,8 +59,6 @@ protected_mode_switch:
 prot_mode_main:
 	[BITS 32]
 	cli
-	mov esi, error
-	call PRINT32
 	mov ax, 0x10 ; initialize segment registers
 	mov ds, ax	; for prot mode
 	mov ss, ax
@@ -85,7 +83,7 @@ long_mode_support_check:
 	jne jump_to_rust
 
 .no_long_mode:
-	mov esi, long_mode_unsupported
+	mov edi, long_mode_unsupported
 	call PRINT32
 .LOOP2:
 	hlt
@@ -93,9 +91,10 @@ long_mode_support_check:
 
 jump_to_rust:
 %assign RUST_LOADER_ENTRY 0x4000
+	mov edi, PRINT32
+	mov esi, GDT64
 	xor eax, eax
 	mov eax, RUST_LOADER_ENTRY
-	mov ecx, letters_count
 	jmp eax
 
 ;switch_to_64_bit:
@@ -137,27 +136,27 @@ PRINT:
 
 	[BITS 16]
 	XOR_DS
-	mov byte bl, [si]
+	mov byte bl, [di]
 	xor ax, ax
 	mov byte al, [letters_count]
-	mov di, ax
+	mov si, ax
 	SET_DS
 .LOOP3:
-	mov byte [di], bl
-	inc di,
-	mov byte [di], 0
-	or byte [di], 0x0F
-	inc di
+	mov byte [si], bl
+	inc si,
+	mov byte [si], 0
+	or byte [si], 0x0F
 	inc si
+	inc di
 
 	XOR_DS
-	mov byte bl, [si]
+	mov byte bl, [di]
 	SET_DS
 	cmp byte bl, 0
 	jne .LOOP3
 
 	XOR_DS
-	mov ax, di
+	mov ax, si
 	mov byte [letters_count], al
 	ret
 
@@ -166,15 +165,15 @@ PRINT32:
 	xor eax, eax
 	mov byte al, [letters_count]
 	add eax, 0xB8000
-	mov byte bl, [esi]
+	mov byte bl, [edi]
 .LOOP4:
 	mov byte [eax], bl
 	inc eax,
 	mov byte [eax], 0
 	or byte [eax], 0x0F
 	inc eax
-	inc esi
-	mov byte bl, [esi]
+	inc edi
+	mov byte bl, [edi]
 	cmp byte bl, 0 
 	jne .LOOP4
 	mov byte [letters_count], al

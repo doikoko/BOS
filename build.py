@@ -79,12 +79,8 @@ if argv[1] == "new":
 
         loader_target = Path("loader").joinpath("i686-unknown-none.json")
         kernel_target = "x86_64-unknown-none"
-        if is_first_exec:
-            command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
-                    f"error compilation loader")
-        else:
-            command(f"cargo build -p loader --release --target {loader_target}",
-                    f"error compilation loader")
+        command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
+                f"error compilation loader")
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
@@ -92,7 +88,7 @@ if argv[1] == "new":
         command(f"dd if={loader_bin} of={loader_ko} bs=2048 conv=sync",
             f"error while generating {loader_ko}")
         
-        command(f"cargo build -p kernel --release --target {kernel_target}",
+        command(f"cargo build -Zbuild-std=core -p kernel --release --target {kernel_target}",
             f"you haven't cargo")
         
         prog = "xorriso as mkisofs"
@@ -133,3 +129,6 @@ elif argv[1] == "test":
     ])
     print(start_qemu)
     command(start_qemu)
+
+
+

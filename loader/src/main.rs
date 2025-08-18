@@ -3,28 +3,28 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 #![allow(unused_assignments)]
+#![allow(dead_code)]
+#![allow(unreachable_code)]
 #![cfg(target_pointer_width = "32")]
-// use io::io::{print, Colors};
 
-//const KERNEL_FUNC_ADDR: usize = 0x200_000;
-//
-//const KERNEL_START_ADDR: usize = 0x200_000;
-//const KERNEL_SIZE: usize = 0x200_000;
-//const KERNEL_START_ADDR_IN_ISO: usize = 0x32_000;
-//
-//const SECTOR_SIZE: usize = 512;
-//
-//const KERNEL_SECTORS_PER_ITERATION: usize = 256;
-//const KERNEL_SECTORS_IN_KERNEL: usize = KERNEL_SIZE / SECTOR_SIZE;
-//const COMMAND_ITERATIONS: usize = KERNEL_SECTORS_IN_KERNEL / KERNEL_SECTORS_PER_ITERATION;
-//
-//const MEMORY_PER_ITERATION: usize = KERNEL_SECTORS_PER_ITERATION * SECTOR_SIZE;
+const KERNEL_FUNC_ADDR: usize = 0x200_000;
+
+const KERNEL_START_ADDR: usize = 0x200_000;
+const KERNEL_SIZE: usize = 0x200_000;
+const KERNEL_START_ADDR_IN_ISO: usize = 0x32_000;
+
+const SECTOR_SIZE: usize = 512;
+
+const KERNEL_SECTORS_PER_ITERATION: usize = 256;
+const KERNEL_SECTORS_IN_KERNEL: usize = KERNEL_SIZE / SECTOR_SIZE;
+const COMMAND_ITERATIONS: usize = KERNEL_SECTORS_IN_KERNEL / KERNEL_SECTORS_PER_ITERATION;
+
+const MEMORY_PER_ITERATION: usize = KERNEL_SECTORS_PER_ITERATION * SECTOR_SIZE;
 macro_rules! hlt {
     () => {
         unsafe {core::arch::asm!("hlt")}
     };
 }
-//
 //trait ReadLba{
 //    fn read_pio_lba_48(&self, sectors: u16, lba: usize, buffer: *mut u16);
 //}
@@ -62,19 +62,47 @@ macro_rules! hlt {
 //    }
 //}
 
+// because in 32 bit mode call convention is other need to 
+// call function as in other parts of code
+macro_rules! print32_call {
+    ($addr : expr, $arg : expr) => {
+        unsafe {
+            core::arch::asm!(
+                "push eax",
+                "push ebx",
+                "push edi",
+                
+                "mov edi, {0}",
+                "call {1}",
+
+                "pop edi",
+                "pop ebx",
+                "pop eax",
+                in(reg) $arg,
+                in(reg) $addr,
+            )
+        };
+    };
+}
+
 #[unsafe(link_section = ".loader.loader")]
 #[unsafe(no_mangle)]
 pub extern "C" fn loader() {
-    let letter_count: &mut u8;
-    unsafe {
+    // this function defined in loader.asm
+    // and address to this func contains in rdi register(passed as argument from asm)
+    let print32_addr: usize = unsafe {
         let addr: usize;
         core::arch::asm!(
-            "mov {0}, ecx",
+            "mov {}, edi",
             out(reg) addr,
+            options(nostack)
         );
-        letter_count = (addr as *mut u8).as_mut().unwrap();
+        addr
     };
- //   print(&"hello from rust", Colors::WHITE, Colors::BLUE);
+    
+    print32_call!(print32_addr, "hello from rust / \0".as_bytes().as_ptr());
+    print32_call!(print32_addr, "second\0".as_bytes().as_ptr());
+    loop{hlt!()};
     //let atapi = ATAPI::new(PrimaryOrSecondary::Primary);
     //
     //if !atapi.is_has_device(){
@@ -91,8 +119,10 @@ pub extern "C" fn loader() {
     //        (KERNEL_START_ADDR as usize + (i * MEMORY_PER_ITERATION)) as *mut u16);
     //}
 //
-    //let kernel_func = KERNEL_FUNC_ADDR as *const extern "C" fn() -> !;
-    //unsafe { (*kernel_func)(); }
+//    let kernel_func: extern "C" fn() -> ! = unsafe {
+//        core::mem::transmute(KERNEL_FUNC_ADDR)
+//    };
+//    kernel_func();
 }
 
 #[panic_handler]

@@ -2,7 +2,6 @@
 #![no_main]
 #![allow(dead_code)]
 #![allow(unused_macros)]
-#![cfg(target_pointer_width = "64")]
 // kernel of OS
 
 use paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE,
