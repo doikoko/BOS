@@ -4,8 +4,8 @@
 #![allow(unused_macros)]
 // kernel of OS
 
-use paging::{ADDRESSES_IN_PD, DISABLE_CACHE, GLOBAL, PAGE_SIZE,
-    PDS_IN_PDPTE, PML4, PRESENT, USER_ACCESS, WRITABLE, WRITE_THROUGH};
+use paging::paging64::*;
+use paging::*;
 use io::{Colors, print};
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;

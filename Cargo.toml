@@ -9,8 +9,10 @@ members = [
     "interrupts",
     "paging",
     "dma",
-    "atapi"
-]
+    "atapi",
+    "memory", 
+    # tests
+    "tests"]
 
 resolver = "3"
 

@@ -1,0 +1,11 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+memory ={ path = "../memory"}
+
+[[test]]
+name = "memory_test"
+path = "./src/memory_test.rs"

@@ -1,7 +1,6 @@
 #![no_std]
 
 // 2 functions to write in port
-#[inline(always)]
 pub fn outb(port: u16, data: u8){
     unsafe {
         core::arch::asm!(
@@ -11,7 +10,6 @@ pub fn outb(port: u16, data: u8){
         )
     }
 }
-#[inline(always)]
 pub fn outw(port: u16, data: u16){
     unsafe {
         core::arch::asm!(
@@ -22,7 +20,6 @@ pub fn outw(port: u16, data: u16){
     }
 }
 // 2 functions to read from port
-#[inline(always)]
 pub fn inb(port: u16) -> u8{
     unsafe {
         let value: u8;
@@ -34,7 +31,6 @@ pub fn inb(port: u16) -> u8{
         value
     }
 }
-#[inline(always)]
 pub fn inw(port: u16) -> u16{
     unsafe {
         let value: u16;

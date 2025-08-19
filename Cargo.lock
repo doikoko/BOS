@@ -43,6 +43,14 @@ dependencies = [
 [[package]]
 name = "loader"
 version = "0.1.0"
+dependencies = [
+ "atapi",
+ "paging",
+]
+
+[[package]]
+name = "memory"
+version = "0.1.0"
 
 [[package]]
 name = "paging"
@@ -51,3 +59,10 @@ version = "0.1.0"
 [[package]]
 name = "ports"
 version = "0.1.0"
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "memory",
+]
