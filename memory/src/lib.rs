@@ -1,15 +1,5 @@
 #![no_std]
 
-pub enum Result {
-    Ok,
-    Err
-}
-impl Result {
-    pub fn unwrap(&self){
-        if let Result::Err = self { panic!() };
-    }
-}
-
 // in this case use 4 functions to any alines of data
 // Example: need to zeroed [u8, 3]
 // to this we call 3 times memzero_step1 func
@@ -52,13 +42,14 @@ pub mod mem64{
 // need to save loader memory
 #[cfg(target_pointer_width = "32")]
 pub mod mem32{
-    pub fn memzero_step4(start_addr: usize, end_addr: usize) -> super::Result {
-        if bytes % 4 != 0 { super::Result::Err }
-        else {
-            for i in 0..(bytes / 4){
-                unsafe { *(start_ptr.add(i)) = 0; };
-            }
-            super::Result::Ok
+    pub trait UnsignedInt: Copy + Default{}
+    impl UnsignedInt for u8 {}
+    impl UnsignedInt for u16 {}
+    impl UnsignedInt for u32 {}
+
+    pub fn memzero<T: UnsignedInt>(start_ptr: *mut T, bytes: usize){
+        for i in 0..(bytes / size_of::<T>()){
+            unsafe{ *(start_ptr.add(i)) = T::default(); };
         }
     }
 }

@@ -111,6 +111,7 @@ pub mod paging64{
 }
 #[cfg(target_pointer_width = "32")]
 pub mod paging32{  
+    use memory::mem32::memzero;
 
     pub const PAGES_IN_PD: usize = 2;
     #[repr(C)]
@@ -119,18 +120,27 @@ pub mod paging32{
     }
     impl<'a> PD {
         pub fn new() -> &'a mut Self{
-            unsafe{ &mut *(PML4_ADDR as *mut Self) }
+            unsafe{ &mut *(super::PML4_ADDR as *mut Self) }
         }
         pub fn set(&mut self, index: usize, page: usize, flags: usize){
             self.pages[index] = ((page >> 1) & 0xFF000) | (page & (0xFF00000 >> 3)) | flags
         }
-        pub fn set_zeroes(&self){
-            let mut ptr: *mut usize = super::PML4_ADDR as *mut usize;
+        pub fn set_zeroes(){
+            memzero::<u32>(super::PML4_ADDR as *mut u32, super::KERNEL_ADDR - super::PML4_ADDR);               
+        }
+        pub fn enable_pae(){
             unsafe {
-                for _ in  0..((super::KERNEL_ADDR - super::PML4_ADDR) / 4){
-                    *ptr = 0;
-                    ptr = ptr.add
-                }
+                core::arch::asm!(
+                    "mov eax {}",
+                    "mov cr3 eax",
+                    "mov eax, cr0",
+                    "or eax, 0x80000001",
+                    "mov cr0, eax",
+                    "mov eax, cr4",
+                    "or eax, 0x00000010",
+                    "mov cr4, eax",
+                    in(reg) super::PML4_ADDR
+                )
             }
         }
     }

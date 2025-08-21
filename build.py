@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True   
+is_first_exec = False   
 
 def command(com: str, error: str = "command error"):
     try:
@@ -122,7 +122,6 @@ if argv[1] == "new":
         
         shutil.rmtree(out_dir)
 
-        exit(0)
     except:
         shutil.rmtree(out_dir)
 
@@ -140,8 +139,6 @@ elif argv[1] == "clean":
             os.remove(file)
         except:
             print(f"no such file or directory {file}")
-
-    exit(0)
 
 elif argv[1] == "test":
     start_qemu = " ".join([
