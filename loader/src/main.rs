@@ -1,9 +1,5 @@
 #![no_std]
 #![no_main]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(unused_assignments)]
-#![allow(dead_code)]
 #![allow(unreachable_code)]
 #![cfg(target_pointer_width = "32")]
 
@@ -123,7 +119,6 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
     let atapi = ATAPI::new(PrimaryOrSecondary::Primary);
     
     if !atapi.is_has_device(){
-        print!("asjdoi \0");
         panic!();
     }
     atapi.wait_drq_and_busy().unwrap();
@@ -137,7 +132,6 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
                 (KERNEL_START_ADDR as usize + (i * MEMORY_PER_ITERATION)) as *mut u16);
     }
 
-    
     loop{hlt!()};
     let kernel_func: extern "C" fn() -> ! = unsafe {
         core::mem::transmute(KERNEL_FUNC_ADDR)
@@ -146,7 +140,7 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
 }
 
 #[panic_handler]
-fn panic_handler(info: &core::panic::PanicInfo) -> !{
+fn panic_handler(_: &core::panic::PanicInfo) -> !{
     print!("PANIC! file: loader/src/main.rs\0");
 
     loop{hlt!()};

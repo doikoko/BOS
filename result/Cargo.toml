@@ -1,11 +1,9 @@
 [package]
-name = "io"
+name = "result"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-ports ={ path="../ports"}
-result ={ path="../result"}
 
 [lib]
 crate-type = ["rlib"]

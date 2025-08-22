@@ -11,8 +11,10 @@ members = [
     "dma",
     "atapi",
     "memory", 
+    "result",
     # tests
-    "tests"]
+    "tests",
+    ]
 
 resolver = "3"
 

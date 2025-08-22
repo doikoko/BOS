@@ -185,6 +185,7 @@ impl ATAPI {
         outb(self.io_registers.lba_high_rw_w, 0);
         outb(self.io_registers.command_w_or_status_r_b, ATAPIOCommands::IdentifyDeviceB as u8);
         
+        self.wait_drq_and_busy();
         if inb(self.io_registers.command_w_or_status_r_b) == 0 {
             false
         } else {

@@ -10,3 +10,4 @@ ports ={ path = "../ports" }
 paging ={ path = "../paging" }
 dma ={ path = "../dma" }
 atapi ={ path = "../atapi" }
+result = { path = "../result" }

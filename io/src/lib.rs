@@ -1,6 +1,6 @@
 #![no_std]
 
-use ports::outb;
+use result::Result;
 
 #[derive(Clone, Copy)]
 #[repr(u8)]
@@ -24,12 +24,18 @@ pub enum Colors{
 }
 
 const FRAMEBUFFER: *mut u8 = 0xB8000 as *mut u8;
+static mut POSITION: u16 = 0;
+
+pub const MAX_COLUMN: u16 = 80;
+pub const MAX_ROW: u16 = 25;
+
 macro_rules! print_char {
     ($symb: expr/*&u8*/, $fg: expr/*u8*/, $bg: expr/*u8*/) => {
         unsafe{
             *FRAMEBUFFER = *$symb;
             *FRAMEBUFFER.add(1) = (($fg as u8) << 4) 
-                | (($bg as u8) & 0x0F);        
+                | (($bg as u8) & 0x0F);
+            POSITION += 1;        
         }
     };
 }
@@ -40,16 +46,19 @@ pub fn print(string: &str, fg: Colors, bg: Colors){
     }
 }
 
-const FB_COMMAND_PORT: u16 = 0x3D4;
-const FB_DATA_PORT: u16 = 0x3D5;
-
-const FB_HIGH_BYTE_COMMAND: u8 = 14;
-const FB_LOW_BYTE_COMMAND: u8 = 15;
+// const FB_COMMAND_PORT: u16 = 0x3D4;
+// const FB_DATA_PORT: u16 = 0x3D5;
+// 
+// const FB_HIGH_BYTE_COMMAND: u8 = 14;
+// const FB_LOW_BYTE_COMMAND: u8 = 15;
 
 #[inline(always)]
-pub fn move_cursor(pos: u16){
-    outb(FB_COMMAND_PORT, FB_HIGH_BYTE_COMMAND);
-    outb(FB_DATA_PORT, (pos >> 8) as u8);
-    outb(FB_COMMAND_PORT, FB_LOW_BYTE_COMMAND);
-    outb(FB_DATA_PORT, pos as u8);
+pub fn move_cursor(pos: u16) -> Result{
+    if pos > (MAX_COLUMN * MAX_ROW) {
+        Result::Err
+    }
+    else {
+        unsafe { POSITION = pos; };
+        Result::Ok
+    }
 }

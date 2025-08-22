@@ -2,11 +2,12 @@
 #![no_main]
 #![allow(dead_code)]
 #![allow(unused_macros)]
+#![allow(unreachable_code)]
 // kernel of OS
 
 use paging::paging64::*;
 use paging::*;
-use io::{Colors, print};
+use io::{Colors, print, MAX_COLUMN, MAX_ROW};
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
@@ -35,6 +36,9 @@ macro_rules! hlt {
 #[unsafe(link_section = "kernel.kernel")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
+    print(unsafe { str::from_utf8_unchecked(&[b' '; MAX_COLUMN as usize * MAX_ROW as usize]) },
+        Colors::WHITE, Colors::BLACK);
+    loop { hlt!(); }
     PML4::set_zeroes();
     PML4::init();
     let pml4 = PML4::new();
