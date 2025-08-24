@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 paging ={ path = "../paging" }
 atapi ={ path = "../atapi" }
+io = {path = "../io"}

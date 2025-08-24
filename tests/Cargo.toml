@@ -4,8 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-memory ={ path = "../memory"}
+heap ={ path = "../heap"}
+io = { path = "../io"}
 
 [[test]]
 name = "memory_test"
 path = "./src/memory_test.rs"
+
+[[test]]
+name = "io_test"
+path = "./src/io_test.rs"

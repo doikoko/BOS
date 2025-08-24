@@ -45,10 +45,10 @@ if len(argv) != 2:
 if argv[1] == "inttest":
     file = input("ENTER FILE FOR TEST ('all' - for files, see ./tests folder),\n" \
         "LIST OF TESTABLE ARGUMENTS:\n" \
-        "memory_test\n")
+        "memory_test\nio_test\narr_test\n")
 
     if file != "all":
-        command(f"cargo test -p tests --bin {file}")
+        command(f"cargo test -p tests --test {file}")
     else:
         command("cargo test -p tests")
     

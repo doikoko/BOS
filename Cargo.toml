@@ -10,7 +10,7 @@ members = [
     "paging",
     "dma",
     "atapi",
-    "memory", 
+    "heap", 
     "result",
     # tests
     "tests",

@@ -1,10 +1,10 @@
 #![no_std]
+#![allow(dead_code)]
 
-// in this case use 4 functions to any alines of data
-// Example: need to zeroed [u8, 3]
-// to this we call 3 times memzero_step1 func
 #[cfg(target_pointer_width = "64")]
 pub mod mem64{
+    use core::ops::{Index, IndexMut};
+
     pub trait UnsignedInt: Copy + Default{}
     impl UnsignedInt for u8 {}
     impl UnsignedInt for u16 {}
@@ -35,6 +35,34 @@ pub mod mem64{
 
         memzero::<u8>(start_ptr, bytes_1);
     }
+    
+    unsafe extern "C"{
+        fn make_arr(arr: *mut u8, len: u8);
+    }
+    pub struct UnsafeArr<T>(pub *mut T);
+    impl<T> UnsafeArr<T>{
+        pub fn new(len: u8) -> Self{
+            let arr: *mut u8 = 0 as *mut u8;
+            unsafe { 
+                make_arr(arr, len * (size_of::<T>() as u8));
+                UnsafeArr(arr as *mut T)
+            }
+        }
+    }
+    impl<T> Index<usize> for UnsafeArr<T> {
+        type Output = T;
+
+        fn index(&self, index: usize) -> &Self::Output {
+            unsafe { &(*(self.0.add(index))) }
+        }
+    }
+    impl<T> IndexMut<usize> for UnsafeArr<T> {
+        fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+            unsafe { &mut (*(self.0.add(index))) }
+        } 
+    }
+
+
 }
 // in this case use 1 function because in 32 bit mode works only 
 // loader and for him 1 function will be enough, and 

@@ -37,7 +37,7 @@ macro_rules! hlt {
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
     print(unsafe { str::from_utf8_unchecked(&[b' '; MAX_COLUMN as usize * MAX_ROW as usize]) },
-        Colors::WHITE, Colors::BLACK);
+        Colors::WHITE, Colors::BLACK, &mut 0);
     loop { hlt!(); }
     PML4::set_zeroes();
     PML4::init();
@@ -45,18 +45,20 @@ pub extern "C" fn _start() -> ! {
     
     pml4.set(0);
     let pdpte = pml4.get(0);
-    let mut current_addr: usize = 0;
+    let mut current_addr = 0usize;
 
-    // identity mapping (virt mem = phys mem) for first 2mb(pre-kernel memory)
+    // identity mapping (virt mem = phys mem) for first 6mb(pre-kernel memory 0-2mb, 2-4mb kernel 4-6mb heap)
     pdpte.set(0);
     let first_pd = pdpte.get(0);
-    first_pd.set(0, current_addr, PRESENT | WRITABLE | 
-        WRITE_THROUGH | DISABLE_CACHE | PAGE_SIZE | GLOBAL);
-    
-    current_addr += 0x400_000;
+    for i in 0..3{
+        first_pd.set(i, current_addr, PRESENT | WRITABLE | 
+            WRITE_THROUGH | DISABLE_CACHE | PAGE_SIZE | GLOBAL);
+        
+        current_addr += 0x200_000;
+    }
 
     // init all remaining pages in first PD
-    for i in 1..ADDRESSES_IN_PD{
+    for i in 3..ADDRESSES_IN_PD{
         first_pd.set(i, current_addr, PRESENT | WRITABLE | 
             USER_ACCESS | PAGE_SIZE);
         
@@ -74,22 +76,8 @@ pub extern "C" fn _start() -> ! {
             current_addr += 0x200_000;
         }
     }
-    
-    // map kernel to up of virt memory
-    pdpte.set(PDS_IN_PDPTE - 1);
-    let last_pd = pdpte.get(PDS_IN_PDPTE - 1);
-    last_pd.set(ADDRESSES_IN_PD - 1, 0x200_000, PRESENT | WRITABLE | WRITE_THROUGH |
-            DISABLE_CACHE | PAGE_SIZE | GLOBAL);
-    
-    for i in 0..(ADDRESSES_IN_PD - 1){
-        last_pd.set(i, current_addr, PRESENT | WRITABLE | 
-            USER_ACCESS | PAGE_SIZE);
-        
-        current_addr += 0x200_000;
-    }
 
     pml4.enable_pae(); 
-    print(&"A", Colors::BLUE, Colors::RED);
     
     // set up interrupt descriptor table
     // unsafe {

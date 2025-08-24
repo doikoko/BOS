@@ -3,6 +3,7 @@
 #![allow(unreachable_code)]
 #![cfg(target_pointer_width = "32")]
 
+use io::{Colors, *};
 use atapi::*;
 use paging::{paging32::*, DISABLE_CACHE, GLOBAL, PAGE_SIZE, PRESENT, WRITABLE, WRITE_THROUGH};
 
@@ -104,6 +105,8 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
         );
     }
     
+    print("her",
+        Colors::BLACK, Colors::GREEN, &mut 0);
     print!("init PML4 in 32 bit mode / \0");
     // init minimal PML4 for 32 bit
     let pd = PD::new();

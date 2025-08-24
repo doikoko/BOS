@@ -1,7 +1,5 @@
 #![no_std]
 
-use result::Result;
-
 #[derive(Clone, Copy)]
 #[repr(u8)]
 pub enum Colors{
@@ -24,41 +22,27 @@ pub enum Colors{
 }
 
 const FRAMEBUFFER: *mut u8 = 0xB8000 as *mut u8;
-static mut POSITION: u16 = 0;
 
 pub const MAX_COLUMN: u16 = 80;
 pub const MAX_ROW: u16 = 25;
-
-macro_rules! print_char {
-    ($symb: expr/*&u8*/, $fg: expr/*u8*/, $bg: expr/*u8*/) => {
-        unsafe{
-            *FRAMEBUFFER = *$symb;
-            *FRAMEBUFFER.add(1) = (($fg as u8) << 4) 
-                | (($bg as u8) & 0x0F);
-            POSITION += 1;        
-        }
-    };
-}
-#[inline(always)]
-pub fn print(string: &str, fg: Colors, bg: Colors){
+pub fn print(string: &str, fg: Colors, bg: Colors, pos: &mut usize){
+    if *pos > (MAX_COLUMN * MAX_ROW) as usize{ return; };
     for symb in string.as_bytes(){
-        print_char!(symb, fg as u8, bg as u8);
+        unsafe{
+            *(FRAMEBUFFER.add(*pos)) = *symb;
+            *(FRAMEBUFFER.add(*pos).add(1)) = ((fg as u8) << 4) 
+                | ((bg as u8) & 0x0F);
+            *pos += 2;
+        };
     }
 }
-
-// const FB_COMMAND_PORT: u16 = 0x3D4;
-// const FB_DATA_PORT: u16 = 0x3D5;
-// 
-// const FB_HIGH_BYTE_COMMAND: u8 = 14;
-// const FB_LOW_BYTE_COMMAND: u8 = 15;
-
-#[inline(always)]
-pub fn move_cursor(pos: u16) -> Result{
-    if pos > (MAX_COLUMN * MAX_ROW) {
-        Result::Err
-    }
-    else {
-        unsafe { POSITION = pos; };
-        Result::Ok
-    }
+pub fn itos(mut num: i32, buf: &mut [u8]){
+    buf
+        .iter_mut()
+        .rev()
+        .for_each(|digit| {
+            *digit = (num % 10) as u8 + 0x30;
+            num /= 10; 
+        });
+    if num < 0 { buf[0] = b'-' };
 }
