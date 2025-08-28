@@ -133,7 +133,8 @@ elif argv[1] == "clean":
         Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
         Path("BOS.iso"),
     )
-    shutil.rmtree(out_dir)
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
     for file in files_to_remove:
         try:
             os.remove(file)
