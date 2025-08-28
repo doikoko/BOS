@@ -1,6 +1,3 @@
-// heap allocated on addresses 0x400_000 - 0x600_000
-#include <stdint.h>
-
 #define NULL (void*)0
 
 #define HEAP_FIRST_ADDR 0x400000 + 0x6650
@@ -9,28 +6,28 @@
 
 #define HEAP_TABLE_SIZE 0x6650
 #define HEAP_TABLE_ADDR 0x400000
-typedef struct HeapTable{
-    uint8_t data[HEAP_TABLE_SIZE]
-} HeapTable;
 
-void memset(long data, long* start_ptr, int bytes){
-    for(int i = 0; i < bytes / 8; i++){
-        *start_ptr = data;
-        start_ptr++;
-    }
-}
+typedef unsigned char uint8_t;
+typedef unsigned short uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned long uint64_t;
 
-#define HEAP_PAGE_SIZE 10
+#define UINT8_MAX 0xFF
+
+typedef struct{
+    uint8_t head_table[HEAP_TABLE_SIZE];
+    uint8_t heap_memory[HEAP_SIZE];
+} Heap;
+
+#define HEAP_PAGE_SIZE 0x10
 #define MAX_ONE 1 << 7
-void* malloc(HeapTable *heap_table, uint32_t bytes){
+void* _malloc(Heap *heap_table, uint32_t len){
     long addr = HEAP_FIRST_ADDR;
-    uint8_t one = 1, count = 0, sequence_len = bytes / HEAP_PAGE_SIZE;
+    uint8_t one = 1, count = 0, sequence_len = len / HEAP_PAGE_SIZE;
 
     // if input - 25 sequence_len will contain 2
-    if ((bytes % HEAP_PAGE_SIZE) != 0){
-        sequence_len += HEAP_PAGE_SIZE;
-        if (sequence_len > UINT8_MAX) return NULL;
-    }
+    if ((len % HEAP_PAGE_SIZE) != 0)
+        sequence_len += 1;
 
     // iterate each byte
     for(uint8_t *ptr = (uint8_t*)heap_table; (long)ptr < HEAP_TABLE_SIZE; ptr++){
@@ -44,23 +41,25 @@ void* malloc(HeapTable *heap_table, uint32_t bytes){
             if (one == MAX_ONE) break;
         }
     }
+    return NULL;
 }
-int free(HeapTable *heap_table, void* ptr, uint32_t bytes){
+
+uint8_t _free(Heap *heap_table, void* ptr, uint32_t len){
     if ((long)ptr > HEAP_LAST_ADDR && (long)ptr < HEAP_FIRST_ADDR) return 1;
     
     // each byte menegementing 80 bytes in heap (1bit - 10)
     uint32_t
         first_byte = ((long)ptr - HEAP_FIRST_ADDR) / (HEAP_PAGE_SIZE * 8),
         first_bit = (((long)ptr - HEAP_FIRST_ADDR) % (HEAP_PAGE_SIZE * 8)) / 10,
-        sequence_len = bytes / HEAP_PAGE_SIZE;
+        sequence_len = len / HEAP_PAGE_SIZE;
 
-    if((bytes % HEAP_PAGE_SIZE) != 0){
+    if((len % HEAP_PAGE_SIZE) != 0){
         sequence_len += HEAP_PAGE_SIZE;
-        if (sequence_len > UINT8_MAX) return NULL;
+        if (sequence_len > UINT8_MAX) return 1;
     }
 
     uint8_t one = 1;
-    uint8_t *table_ptr = (uint8_t)HEAP_TABLE_ADDR + first_byte;
+    uint8_t *table_ptr = (uint8_t*)(HEAP_TABLE_ADDR + first_byte);
     
     // set up 1 touchin byte (byte can be |0|0|1|1|1|1..)
     for(one <<= (first_bit - 1); sequence_len > 0 ; one <<= 1, sequence_len--){
@@ -73,9 +72,4 @@ int free(HeapTable *heap_table, void* ptr, uint32_t bytes){
  //   for(uint32_t i = 0; i < bytes; i++, ptr++){
  //       for(uint8_t i = 0; i )
  //   }
-}
-HeapTable *heap_init(){
-    HeapTable *heap_table = (HeapTable*)HEAP_TABLE_ADDR;
-   
-    memset(0, (long*)heap_table, HEAP_TABLE_SIZE + HEAP_SIZE);
 }

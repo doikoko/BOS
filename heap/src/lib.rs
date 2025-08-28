@@ -1,83 +1,152 @@
 #![no_std]
 #![allow(dead_code)]
 
-#[cfg(target_pointer_width = "64")]
-pub mod mem64{
-    use core::ops::{Index, IndexMut};
+use core::mem::{size_of, MaybeUninit};
 
-    pub trait UnsignedInt: Copy + Default{}
-    impl UnsignedInt for u8 {}
-    impl UnsignedInt for u16 {}
-    impl UnsignedInt for u32 {}
-    impl UnsignedInt for u64 {}
+use result::Result;
 
-    pub fn memzero<T: UnsignedInt>(start_ptr: *mut T, bytes: usize){
-        for i in 0..(bytes / size_of::<T>()){
-            unsafe{ *(start_ptr.add(i)) = T::default(); };
+const HEAP_FIRST_ADDR: usize = 0x400000 + HEAP_TABLE_SIZE;
+const HEAP_LAST_ADDR: usize = 0x600000;
+const HEAP_SIZE: usize = 0x200000 - HEAP_TABLE_SIZE;
+
+const HEAP_TABLE_SIZE: usize = 0x4000;
+const HEAP_TABLE_FIRST_ADDR: usize = 0x400000;
+const HEAP_TABLE_LAST_ADDR: usize = 0x400000 + HEAP_TABLE_SIZE;
+
+// 1bit management 0x10 bytes of heap
+const HEAP_PACKET_SIZE: u8 = 0x10;
+
+unsafe extern "C" {
+    fn _malloc(heap: *mut Heap, bytes: u32) -> *mut ();
+    fn _free(heap: *mut Heap, ptr: *mut (), bytes: u32) -> u8;
+}
+#[repr(C)]
+struct Heap{
+    heap_table: [u8; HEAP_TABLE_SIZE],
+    heap_memory: [u8; HEAP_SIZE]
+}
+impl<'a> Heap{
+    pub fn new() -> &'a mut Self{
+        let ptr = HEAP_TABLE_FIRST_ADDR as *mut Heap;
+        unsafe {
+            ptr.write(Heap {
+                heap_table: [0u8; HEAP_TABLE_SIZE], 
+                heap_memory: [0u8; HEAP_SIZE] 
+            });
+
+            &mut *ptr
         }
     }
-    /// this function smartly calculating the shortest way
-    /// slowly than memzero_step8 but gives guarantees
-    pub fn memzero_smart(mut start_ptr: *mut u8, bytes: usize){
-        let bytes_8 = bytes / 8 * 8;
-        let bytes_4 = (bytes - bytes_8) / 4 * 4;
-        let bytes_2 = (bytes - bytes_8 - bytes_4) / 2 * 2;
-        let bytes_1 = bytes - bytes_8 - bytes_4 - bytes_2;
-
-        memzero::<u64>(start_ptr as *mut u64, bytes_8);
-        unsafe { start_ptr = start_ptr.add(bytes_8); };
-
-        memzero::<u32>(start_ptr as *mut u32, bytes_4);
-        unsafe { start_ptr = start_ptr.add(bytes_4); };
-
-        memzero::<u16>(start_ptr as *mut u16, bytes_2);
-        unsafe { start_ptr = start_ptr.add(bytes_2); };
-
-        memzero::<u8>(start_ptr, bytes_1);
+    pub(crate) fn malloc(len: u32) -> Option<*mut ()>{
+        let ptr = unsafe{ 
+            _malloc(HEAP_TABLE_FIRST_ADDR as *mut Heap, len) as *mut u8
+        };
+        if ptr.is_null(){
+            None
+        }
+        else {
+            Some( unsafe{ &mut *(ptr as *mut ()) })
+        }
     }
-    
-    unsafe extern "C"{
-        fn make_arr(arr: *mut u8, len: u8);
-    }
-    pub struct UnsafeArr<T>(pub *mut T);
-    impl<T> UnsafeArr<T>{
-        pub fn new(len: u8) -> Self{
-            let arr: *mut u8 = 0 as *mut u8;
-            unsafe { 
-                make_arr(arr, len * (size_of::<T>() as u8));
-                UnsafeArr(arr as *mut T)
+    pub(crate) fn free(ptr: *mut (), len: u32) -> Result{
+        unsafe{
+            if _free(HEAP_TABLE_FIRST_ADDR as *mut Heap, ptr, len) == 0{
+                Result::Ok
+            }
+            else {
+                Result::Err
             }
         }
     }
-    impl<T> Index<usize> for UnsafeArr<T> {
-        type Output = T;
-
-        fn index(&self, index: usize) -> &Self::Output {
-            unsafe { &(*(self.0.add(index))) }
+    pub(crate) fn realloc(ptr: *mut (), source_len: u32, res_len: u32) -> Option<*mut ()>{
+        if (source_len % HEAP_PACKET_SIZE as u32) == (res_len % HEAP_PACKET_SIZE as u32){
+            Some(ptr)
+        } else {
+            let data: *mut (); 
+            if let Some(mem) = Self::malloc(res_len){
+                data = mem;
+                for i in 0..(source_len as usize){
+                    unsafe { 
+                        (data as *mut u8)
+                            .add(i)
+                            .write_unaligned(
+                                (ptr as *mut u8)
+                                    .add(i)
+                                    .read_unaligned()
+                                ) 
+                    }
+                }
+                Self::drop(ptr, source_len, "Realloc panicked");
+                Some(data)
+            }
+            else{
+                Self::drop(ptr, source_len, "Realloc panicked");
+                None
+            }
         }
     }
-    impl<T> IndexMut<usize> for UnsafeArr<T> {
-        fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-            unsafe { &mut (*(self.0.add(index))) }
-        } 
+    pub(crate) fn drop(ptr: *mut (), len: u32, msg: &str){
+        if let Result::Err = Heap::free(ptr, len){
+            panic!("{}", msg);
+        }
     }
-
-
 }
-// in this case use 1 function because in 32 bit mode works only 
-// loader and for him 1 function will be enough, and 
-// because project is compilated as static rust library
-// need to save loader memory
-#[cfg(target_pointer_width = "32")]
-pub mod mem32{
-    pub trait UnsignedInt: Copy + Default{}
-    impl UnsignedInt for u8 {}
-    impl UnsignedInt for u16 {}
-    impl UnsignedInt for u32 {}
+struct Box<T>(*mut T);
+impl<T> Box<T>{
+    pub fn new(data: T) -> Self{
+        Self (
+            match Heap::malloc(size_of::<T>() as u32){
+                Some(mem) => {
+                    unsafe { (mem as *mut T).write(data); };
+                    mem as *mut T
+                },
+                None => panic!("Box panicked while malloc")
+            },
+        )
+    }
+    pub fn get(&self) -> T{
+        unsafe { self.0.read() }
+    }
+    pub fn set(&mut self, data: T) {
+        unsafe { self.0.write(data); };
+    }
+}
+impl<T> Drop for Box<T>{
+    fn drop(&mut self) {
+        if let Result::Err = Heap::free(self.0 as *mut (), size_of::<T>() as u32){
+            panic!("Box panicked while drop")
+        }
+    }
+}
 
-    pub fn memzero<T: UnsignedInt>(start_ptr: *mut T, bytes: usize){
-        for i in 0..(bytes / size_of::<T>()){
-            unsafe{ *(start_ptr.add(i)) = T::default(); };
+#[derive(Copy, Clone)]
+struct Vec<T>{
+    ptr: *mut T,
+    len: u32
+}
+impl<T> Vec<T>{
+    pub fn new(first: T) -> Self{
+        Self{
+            ptr: match Heap::malloc(size_of::<T>() as u32){
+                Some(mem) => {
+                    unsafe { (mem as *mut T).write(first); };
+                    mem as *mut T
+                },
+                None => panic!("Box panicked while malloc")
+            },
+            len: size_of::<T>() as u32
+        }
+    }
+    pub fn push(&mut self, data: T){
+        let size = size_of::<T>() as u32;
+        let offset = self.len + size;
+        if (HEAP_PACKET_SIZE as u32) - offset > 0{
+            unsafe{
+                self.ptr.add(offset as usize).write_unaligned(data);
+            }
+        } else{
+            let temp = self;
+                    
         }
     }
 }

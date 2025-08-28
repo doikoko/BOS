@@ -8,8 +8,8 @@ heap ={ path = "../heap"}
 io = { path = "../io"}
 
 [[test]]
-name = "memory_test"
-path = "./src/memory_test.rs"
+name = "arr_test"
+path = "./src/arr_test.rs"
 
 [[test]]
 name = "io_test"

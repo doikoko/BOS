@@ -27,8 +27,6 @@ print('-' * 10, '\n')
 
 out_dir = Path("out")
 
-if not out_dir.exists():
-    out_dir.mkdir()
 
 
 if not "64" in platform.architecture()[0]:
@@ -45,7 +43,7 @@ if len(argv) != 2:
 if argv[1] == "inttest":
     file = input("ENTER FILE FOR TEST ('all' - for files, see ./tests folder),\n" \
         "LIST OF TESTABLE ARGUMENTS:\n" \
-        "memory_test\nio_test\narr_test\n")
+        "io_test\narr_test\n")
 
     if file != "all":
         command(f"cargo test -p tests --test {file}")
@@ -55,6 +53,8 @@ if argv[1] == "inttest":
     exit(0)
 
 if argv[1] == "new":
+    if not out_dir.exists():
+        out_dir.mkdir()
     if is_first_exec:
         try:
             os.remove(Path("iso").joinpath("boot").joinpath("loader").joinpath(".gitkeep"))
@@ -94,8 +94,8 @@ if argv[1] == "new":
 
         loader_target = Path("loader").joinpath("i686-unknown-none.json")
         kernel_target = "x86_64-unknown-none"
-        command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
-                f"error compilation loader")
+        #command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
+        #        f"error compilation loader")
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
@@ -133,7 +133,7 @@ elif argv[1] == "clean":
         Path("iso").joinpath("boot").joinpath("loader").joinpath("loader.ko"),
         Path("BOS.iso"),
     )
-    
+    shutil.rmtree(out_dir)
     for file in files_to_remove:
         try:
             os.remove(file)

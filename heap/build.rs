@@ -5,9 +5,9 @@ fn main(){
     
     let file = PathBuf::from(&manifest_dir)
         .join("src")
-        .join("runtime_arr.c");
+        .join("heap.c");
 
     cc::Build::new()
         .file(file)
-        .compile("runtime_arr");
+        .compile("heap");
 }

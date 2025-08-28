@@ -111,8 +111,6 @@ pub mod paging64{
 }
 #[cfg(target_pointer_width = "32")]
 pub mod paging32{  
-    use memory::mem32::memzero;
-
     pub const PAGES_IN_PD: usize = 2;
     #[repr(C)]
     pub struct PD {
@@ -126,7 +124,6 @@ pub mod paging32{
             self.pages[index] = ((page >> 1) & 0xFF000) | (page & (0xFF00000 >> 3)) | flags
         }
         pub fn set_zeroes(){
-            memzero::<u32>(super::PML4_ADDR as *mut u32, super::KERNEL_ADDR - super::PML4_ADDR);               
         }
         pub fn enable_pae(){
             unsafe {

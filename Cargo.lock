@@ -23,6 +23,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "heap"
+version = "0.1.0"
+dependencies = [
+ "cc",
+ "result",
+]
+
+[[package]]
 name = "interrupts"
 version = "0.1.0"
 dependencies = [
@@ -60,17 +68,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "memory"
-version = "0.1.0"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "paging"
 version = "0.1.0"
 dependencies = [
- "memory",
+ "heap",
 ]
 
 [[package]]
@@ -91,6 +92,6 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 name = "tests"
 version = "0.1.0"
 dependencies = [
+ "heap",
  "io",
- "memory",
 ]

@@ -36,7 +36,7 @@ pub fn print(string: &str, fg: Colors, bg: Colors, pos: &mut usize){
         };
     }
 }
-pub fn itos(mut num: i32, buf: &mut [u8]){
+pub fn itos(mut num: i32, buf: &mut [u8]) -> &str{
     buf
         .iter_mut()
         .rev()
@@ -45,4 +45,5 @@ pub fn itos(mut num: i32, buf: &mut [u8]){
             num /= 10; 
         });
     if num < 0 { buf[0] = b'-' };
+    "hello"
 }
