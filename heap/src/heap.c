@@ -33,9 +33,17 @@ void* _malloc(Heap *heap_table, uint32_t len){
     for(uint8_t *ptr = (uint8_t*)heap_table; (long)ptr < HEAP_TABLE_SIZE; ptr++){
         // iterate each bit
         for (one = 1; ;one <<= 1, addr += HEAP_PAGE_SIZE){
-            if ((*ptr & one) == 1){
+            if ((*ptr & one) == 0){
                 count++;
-                if (count == sequence_len) return (void*)addr;
+                if (count == sequence_len){
+                    for(; count > 0; count--, one <<= 1){
+                        // set bit
+                        *ptr | one;
+                        if(one == 0)
+                            ptr--;
+                    }
+                    return (void*)addr;
+                }
             } 
             else count = 0;
             if (one == MAX_ONE) break;
@@ -54,7 +62,7 @@ uint8_t _free(Heap *heap_table, void* ptr, uint32_t len){
         sequence_len = len / HEAP_PAGE_SIZE;
 
     if((len % HEAP_PAGE_SIZE) != 0){
-        sequence_len += HEAP_PAGE_SIZE;
+        sequence_len += 1;
         if (sequence_len > UINT8_MAX) return 1;
     }
 
@@ -68,8 +76,16 @@ uint8_t _free(Heap *heap_table, void* ptr, uint32_t len){
         if (one == MAX_ONE) break;
     }
     if (one != MAX_ONE) return 0;
- //   if ()
- //   for(uint32_t i = 0; i < bytes; i++, ptr++){
- //       for(uint8_t i = 0; i )
- //   }
+    
+    for(uint8_t *table_ptr = first_byte++; sequence_len > 0; sequence_len--, table_ptr++){
+        for(one = 1; ;one <<= 1){
+            if((*table_ptr & one) != 0)
+                return 1;
+
+            *table_ptr ^= one;
+            if(one == MAX_ONE)
+                break;
+        }
+    }
+    return 0;
 }

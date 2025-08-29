@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = False   
+is_first_exec = True   
 
 def command(com: str, error: str = "command error"):
     try:
@@ -152,4 +152,4 @@ elif argv[1] == "test":
 else:
     commands_message()
 
-    exit(0)
+    exit(0))

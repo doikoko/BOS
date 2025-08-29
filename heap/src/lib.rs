@@ -121,7 +121,9 @@ impl<T> Drop for Box<T>{
 
 #[derive(Copy, Clone)]
 struct Vec<T>{
+    /// ptr is pointer to heap memory
     ptr: *mut T,
+    /// len is lenght vec in bytes
     len: u32
 }
 impl<T> Vec<T>{
@@ -139,14 +141,25 @@ impl<T> Vec<T>{
     }
     pub fn push(&mut self, data: T){
         let size = size_of::<T>() as u32;
-        let offset = self.len + size;
-        if (HEAP_PACKET_SIZE as u32) - offset > 0{
-            unsafe{
-                self.ptr.add(offset as usize).write_unaligned(data);
+        if (HEAP_PACKET_SIZE as u32) - self.len - size == 0{
+            let temp_ptr = self.ptr;
+            self.ptr = Heap::malloc(self.len + HEAP_PACKET_SIZE as u32)
+                .expect("Vec panicked while push") as *mut T;
+
+            for i in 0..self.len as usize{
+                unsafe{
+                    self.ptr
+                    .add(i)
+                    .write_unaligned(
+                        temp_ptr.add(i)
+                        .read_unaligned()
+                    );
+                };
             }
-        } else{
-            let temp = self;
-                    
+        }
+        unsafe{
+            self.len += size;
+            self.ptr.add(self.len as usize).write_unaligned(data);
         }
     }
 }
