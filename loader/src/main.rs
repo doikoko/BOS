@@ -3,7 +3,6 @@
 #![allow(unreachable_code)]
 #![cfg(target_pointer_width = "32")]
 
-use io::{Colors, *};
 use atapi::*;
 use paging::{paging32::*, DISABLE_CACHE, GLOBAL, PAGE_SIZE, PRESENT, WRITABLE, WRITE_THROUGH};
 
@@ -105,8 +104,6 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
         );
     }
     
-    print("her",
-        Colors::BLACK, Colors::GREEN, &mut 0);
     print!("init PML4 in 32 bit mode / \0");
     // init minimal PML4 for 32 bit
     let pd = PD::new();
@@ -117,13 +114,15 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
         pd.set(0, i, PRESENT | WRITABLE | WRITE_THROUGH |
             DISABLE_CACHE | PAGE_SIZE | GLOBAL);
     }
-    
+    pd.enable_pae();
+
     print!("load kernel to 0x200_000 / \0");
     let atapi = ATAPI::new(PrimaryOrSecondary::Primary);
     
     if !atapi.is_has_device(){
         panic!();
     }
+    print!("next / \0");
     atapi.wait_drq_and_busy().unwrap();
     atapi.set_dma_or_pio(DMAOrPIO::PIO);
     atapi.set_flags(MasterOrSlave::Master, LBAOrCHS::LBA);

@@ -5,7 +5,7 @@ from pathlib import Path
 import platform
 import shutil
 
-is_first_exec = True   
+is_first_exec = False   
 
 def command(com: str, error: str = "command error"):
     try:
@@ -94,8 +94,8 @@ if argv[1] == "new":
 
         loader_target = Path("loader").joinpath("i686-unknown-none.json")
         kernel_target = "x86_64-unknown-none"
-        #command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
-        #        f"error compilation loader")
+        command(f"cargo build -Zbuild-std=core -p loader --release --target {loader_target}",
+                f"error compilation loader")
 
         command(f"nasm -f bin {loader_asm} -o {loader_bin}", 
             f"error compilation {loader_asm}")
@@ -152,4 +152,4 @@ elif argv[1] == "test":
 else:
     commands_message()
 
-    exit(0))
+    exit(0)

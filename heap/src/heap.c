@@ -21,7 +21,7 @@ typedef struct{
 
 #define HEAP_PAGE_SIZE 0x10
 #define MAX_ONE 1 << 7
-void* _malloc(Heap *heap_table, uint32_t len){
+void* _malloc(uint32_t len){
     long addr = HEAP_FIRST_ADDR;
     uint8_t one = 1, count = 0, sequence_len = len / HEAP_PAGE_SIZE;
 
@@ -30,7 +30,7 @@ void* _malloc(Heap *heap_table, uint32_t len){
         sequence_len += 1;
 
     // iterate each byte
-    for(uint8_t *ptr = (uint8_t*)heap_table; (long)ptr < HEAP_TABLE_SIZE; ptr++){
+    for(uint8_t *ptr = (uint8_t*)HEAP_TABLE_ADDR; (long)ptr < HEAP_TABLE_SIZE; ptr++){
         // iterate each bit
         for (one = 1; ;one <<= 1, addr += HEAP_PAGE_SIZE){
             if ((*ptr & one) == 0){
@@ -38,7 +38,7 @@ void* _malloc(Heap *heap_table, uint32_t len){
                 if (count == sequence_len){
                     for(; count > 0; count--, one <<= 1){
                         // set bit
-                        *ptr | one;
+                        *ptr |= one;
                         if(one == 0)
                             ptr--;
                     }
@@ -52,7 +52,7 @@ void* _malloc(Heap *heap_table, uint32_t len){
     return NULL;
 }
 
-uint8_t _free(Heap *heap_table, void* ptr, uint32_t len){
+uint8_t _free(void* ptr, uint32_t len){
     if ((long)ptr > HEAP_LAST_ADDR && (long)ptr < HEAP_FIRST_ADDR) return 1;
     
     // each byte menegementing 80 bytes in heap (1bit - 10)
@@ -67,9 +67,9 @@ uint8_t _free(Heap *heap_table, void* ptr, uint32_t len){
     }
 
     uint8_t one = 1;
-    uint8_t *table_ptr = (uint8_t*)(HEAP_TABLE_ADDR + first_byte);
+    uint8_t *table_ptr = (uint8_t*)(HEAP_TABLE_ADDR + (long)first_byte);
     
-    // set up 1 touchin byte (byte can be |0|0|1|1|1|1..)
+    // set up 1 byte (byte can be |0|0|1|1|1|1..)
     for(one <<= (first_bit - 1); sequence_len > 0 ; one <<= 1, sequence_len--){
         if((*table_ptr & one) == 0) return 1;
         *table_ptr ^= one;
@@ -77,7 +77,7 @@ uint8_t _free(Heap *heap_table, void* ptr, uint32_t len){
     }
     if (one != MAX_ONE) return 0;
     
-    for(uint8_t *table_ptr = first_byte++; sequence_len > 0; sequence_len--, table_ptr++){
+    for(table_ptr++; sequence_len > 0; sequence_len--, table_ptr++){
         for(one = 1; ;one <<= 1){
             if((*table_ptr & one) != 0)
                 return 1;

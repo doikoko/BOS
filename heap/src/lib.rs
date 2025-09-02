@@ -1,7 +1,7 @@
 #![no_std]
 #![allow(dead_code)]
 
-use core::mem::{size_of, MaybeUninit};
+use core::mem::size_of;
 
 use result::Result;
 
@@ -17,8 +17,8 @@ const HEAP_TABLE_LAST_ADDR: usize = 0x400000 + HEAP_TABLE_SIZE;
 const HEAP_PACKET_SIZE: u8 = 0x10;
 
 unsafe extern "C" {
-    fn _malloc(heap: *mut Heap, bytes: u32) -> *mut ();
-    fn _free(heap: *mut Heap, ptr: *mut (), bytes: u32) -> u8;
+    fn _malloc(bytes: u32) -> *mut ();
+    fn _free(ptr: *mut (), bytes: u32) -> u8;
 }
 #[repr(C)]
 struct Heap{
@@ -39,7 +39,7 @@ impl<'a> Heap{
     }
     pub(crate) fn malloc(len: u32) -> Option<*mut ()>{
         let ptr = unsafe{ 
-            _malloc(HEAP_TABLE_FIRST_ADDR as *mut Heap, len) as *mut u8
+            _malloc(len) as *mut u8
         };
         if ptr.is_null(){
             None
@@ -50,7 +50,7 @@ impl<'a> Heap{
     }
     pub(crate) fn free(ptr: *mut (), len: u32) -> Result{
         unsafe{
-            if _free(HEAP_TABLE_FIRST_ADDR as *mut Heap, ptr, len) == 0{
+            if _free(ptr, len) == 0{
                 Result::Ok
             }
             else {

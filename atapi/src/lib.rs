@@ -139,7 +139,7 @@ pub enum ControlDeviceRegister{
     NIEN        = 1 << 1,    
 }
 impl ATAPI {
-        pub fn new(base: PrimaryOrSecondary) -> Self {
+    pub fn new(base: PrimaryOrSecondary) -> Self {
         Self {
             io_registers: IORegisters {
                 data_register_rw_w: base as u16,
@@ -159,7 +159,7 @@ impl ATAPI {
         }
     }
     // this function set uo device or head register
-        pub fn set_flags(
+    pub fn set_flags(
         &self, 
         master_or_slave: MasterOrSlave,
         lba_or_chs: LBAOrCHS)
@@ -168,15 +168,15 @@ impl ATAPI {
             master_or_slave as u8 | lba_or_chs as u8);
     }
     // you need to use this function to set status of dma of PIO transfer
-        pub fn set_dma_or_pio(&self, dma_or_pio: DMAOrPIO){
+    pub fn set_dma_or_pio(&self, dma_or_pio: DMAOrPIO){
         outb(self.io_registers.error_r_or_features_w_w, dma_or_pio as u8);
     }
     // you need to use this function after each command
-        pub fn clear_cache(&self){
+    pub fn clear_cache(&self){
         outb(self.io_registers.command_w_or_status_r_b, 0xE7);
     }
     // after this function need to clear_cache
-        pub fn is_has_device(&self) -> bool {
+    pub fn is_has_device(&self) -> bool {
         outb(self.io_registers.device_or_head_rw_b, 
             if self.io_registers.data_register_rw_w == 0x1F0 {0xA0} else {0xB0});
         outb(self.io_registers.sector_count_rw_w, 0);
@@ -198,12 +198,12 @@ impl ATAPI {
     }
     // this function must to be used before each SCSCI command
     // and than you need to use wait_drq function
-        pub fn prepare_scsi(&self) {
+    pub fn prepare_scsi(&self) {
         outb(self.io_registers.command_w_or_status_r_b, ATAOtherCommands::PacketB as u8);
     }
     // this function wait while DRQ and BSY register is not ready
     // you need to use this function after send prepare to SCSI command
-        pub fn wait_drq_and_busy(&self) -> Option<IOStatusRegister> {
+    pub fn wait_drq_and_busy(&self) -> Option<IOStatusRegister> {
         if let Some(reg) = self.wait_busy(){
             Some(reg)
         } else {
@@ -214,7 +214,7 @@ impl ATAPI {
     // this function wait while command byte is busy
     // if this function return None no one error register is not set
     // otherwise return this register 
-        pub fn wait_busy(&self) -> Option<IOStatusRegister>{
+    pub fn wait_busy(&self) -> Option<IOStatusRegister>{
         while inb(self.io_registers.command_w_or_status_r_b) & IOStatusRegister::BSY as u8 != 0 {}
         let status = inb(self.io_registers.command_w_or_status_r_b);
         // if DriveFaultError ErrorIndicator not set
