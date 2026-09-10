@@ -32,5 +32,5 @@
   "supported-split-debuginfo": [
     "packed"
   ],
-  "target-pointer-width": "32"
+  "target-pointer-width": 32
 }

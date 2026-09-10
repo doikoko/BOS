@@ -72,7 +72,7 @@ pub mod paging64{
     
             pdpte
         }
-        pub fn enable_pae(&self){
+        pub fn enable_pae(){
             unsafe{
                 core::arch::asm!(
                     "mov rax, cr4",
@@ -111,8 +111,8 @@ pub mod paging64{
 }
 #[cfg(target_pointer_width = "32")]
 pub mod paging32{  
-    pub const PAGES_IN_PD: usize = 2;
-    #[repr(C)]
+    pub const PAGES_IN_PD: usize = 1024;
+    #[repr(C, align(4096))]
     pub struct PD {
         pub pages: [usize; PAGES_IN_PD]
     }
@@ -121,22 +121,25 @@ pub mod paging32{
             unsafe{ &mut *(super::PML4_ADDR as *mut Self) }
         }
         pub fn set(&mut self, index: usize, page: usize, flags: usize){
-            self.pages[index] = ((page >> 1) & 0xFF000) | (page & (0xFF00000 >> 3)) | flags
+            self.pages[index] = page | flags;
         }
-        pub fn set_zeroes(){
+        pub fn set_zeroes(&mut self){
+            for page in self.pages.iter_mut(){
+                *page = 0;
+            }
         }
         pub fn enable_pae(){
             unsafe {
                 core::arch::asm!(
-                    "mov eax {}",
-                    "mov cr3 eax",
-                    "mov eax, cr0",
-                    "or eax, 0x80000001",
-                    "mov cr0, eax",
+                    "mov cr3, {pdir}",
                     "mov eax, cr4",
                     "or eax, 0x00000010",
                     "mov cr4, eax",
-                    in(reg) super::PML4_ADDR
+                    "mov eax, cr0",
+                    "or eax, 0x80000001",
+                    "mov cr0, eax",
+                    pdir = in(reg) super::PML4_ADDR,
+                    out("eax") _,
                 )
             }
         }

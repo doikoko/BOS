@@ -4,17 +4,18 @@ members = [
     "loader",
     "kernel",
     # library
-    "io",
+    "bootinfo",
+    "io", 
+    "print",
     "ports",
     "interrupts",
     "paging",
     "dma",
     "atapi",
     "heap", 
+    "TSC",
     "result",
-    # tests
-    "tests",
-    ]
+]
 
 resolver = "3"
 

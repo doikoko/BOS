@@ -20,9 +20,8 @@ loader:
 	int 0x10	; switch videocard mode to text
 	cli
 
-	mov di, msg
+	mov di, loading_os
 	call PRINT
-
 
 .loading_rust_part_of_loader:
 	xor ax, ax
@@ -95,6 +94,7 @@ jump_to_rust:
 	mov esi, GDT64
 	xor eax, eax
 	mov eax, RUST_LOADER_ENTRY
+	
 	jmp eax
 
 ;switch_to_64_bit:
@@ -137,7 +137,6 @@ PRINT:
 	[BITS 16]
 	XOR_DS
 	mov byte bl, [di]
-	xor ax, ax
 	mov byte al, [letters_count]
 	mov si, ax
 	SET_DS
@@ -235,7 +234,7 @@ GDT64:
 	dw $ - GDT64 - 1
 	dq GDT64
 
-msg: db "loading os / ", 0
+loading_os: db "loading os / ", 0
 error: db "kernel error / ", 0
 long_mode_unsupported: db "long mode unsupported / ", 0
 letters_count: db 0

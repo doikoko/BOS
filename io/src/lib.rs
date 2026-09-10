@@ -1,49 +1,45 @@
 #![no_std]
 
-#[derive(Clone, Copy)]
-#[repr(u8)]
-pub enum Colors{
-    BLACK    = 0, 
-    BLUE     = 1,
-    GREEN    = 2,
-    CYAN     = 3,
-    RED      = 4,
-    MAGENTA  = 5,
-    BROWN    = 6,
-    LGREY    = 7,
-    DGREY    = 8,
-    LBLUE    = 9,
-    LGREEN   = 10,
-    LCYAN    = 11,
-    LRED     = 12,
-    LMAGENTA = 13,
-    LBROWN   = 14,
-    WHITE    = 15
-}
-
-const FRAMEBUFFER: *mut u8 = 0xB8000 as *mut u8;
-
-pub const MAX_COLUMN: u16 = 80;
-pub const MAX_ROW: u16 = 25;
-pub fn print(string: &str, fg: Colors, bg: Colors, pos: &mut usize){
-    if *pos > (MAX_COLUMN * MAX_ROW) as usize{ return; };
-    for symb in string.as_bytes(){
-        unsafe{
-            *(FRAMEBUFFER.add(*pos)) = *symb;
-            *(FRAMEBUFFER.add(*pos).add(1)) = ((fg as u8) << 4) 
-                | ((bg as u8) & 0x0F);
-            *pos += 2;
-        };
+// function for write to port 1 byte data
+pub fn outb(port: u16, data: u8){
+    unsafe {
+        core::arch::asm!(
+            "out dx, al",
+            in("dx") port,
+            in("al") data
+        )
     }
 }
-pub fn itos(mut num: i32, buf: &mut [u8]) -> &str{
-    buf
-        .iter_mut()
-        .rev()
-        .for_each(|digit| {
-            *digit = (num % 10) as u8 + 0x30;
-            num /= 10; 
-        });
-    if num < 0 { buf[0] = b'-' };
-    "hello"
+// function for write to port 1 byte data
+pub fn outw(port: u16, data: u16){
+    unsafe {
+        core::arch::asm!(
+            "out dx, ax",
+            in("dx") port,
+            in("ax") data
+        )
+    }
+}// function to get 8 bit data from port
+pub fn inb(port: u16) -> u8{
+    unsafe {
+        let value: u8;
+        core::arch::asm!(
+            "in al, dx",
+            in("dx") port,
+            out("al") value
+        );
+        value
+    }
+}
+// function to get 16 bit data from port
+pub fn inw(port: u16) -> u16{
+    unsafe {
+        let value: u16;
+        core::arch::asm!(
+            "in ax, dx",
+            in("dx") port,
+            out("ax") value
+        );
+        value
+    }
 }

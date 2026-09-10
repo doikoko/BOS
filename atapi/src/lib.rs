@@ -73,8 +73,8 @@ pub enum DMAOrPIO{
 }
 #[repr(u8)]
 pub enum MasterOrSlave{
-    Slave = 1 << 4,
-    Master = 0
+    Slave = 0xB0,
+    Master = 0xA0
 }
 #[repr(u8)]
 pub enum LBAOrCHS{
@@ -175,27 +175,42 @@ impl ATAPI {
     pub fn clear_cache(&self){
         outb(self.io_registers.command_w_or_status_r_b, 0xE7);
     }
-    // after this function need to clear_cache
+
     pub fn is_has_device(&self) -> bool {
-        outb(self.io_registers.device_or_head_rw_b, 
-            if self.io_registers.data_register_rw_w == 0x1F0 {0xA0} else {0xB0});
+        bootinfo::BootInfo::get_tsc().expect("TSC is not enabled").delay(1);
+
         outb(self.io_registers.sector_count_rw_w, 0);
         outb(self.io_registers.lba_low_rw_w, 0);
         outb(self.io_registers.lba_mid_rw_w, 0);
         outb(self.io_registers.lba_high_rw_w, 0);
+
         outb(self.io_registers.command_w_or_status_r_b, ATAPIOCommands::IdentifyDeviceB as u8);
-        
-        self.wait_drq_and_busy();
-        if inb(self.io_registers.command_w_or_status_r_b) == 0 {
-            false
-        } else {
-            if let None = self.wait_busy(){
-                true
-            } else {
-                false
-            }
+
+        let status = inb(self.io_registers.command_w_or_status_r_b);
+        if status == 0x00 || status == 0xFF {
+            return false;
         }
+
+        let mut timeout = 1_000_000;
+        while timeout > 0 {
+            let s = inb(self.io_registers.command_w_or_status_r_b);
+            if s & (IOStatusRegister::BSY as u8) == 0 {
+                break;
+            }
+            timeout -= 1;
+            bootinfo::BootInfo::get_tsc().expect("TSC is not enabled").delay(1);
+        }
+        if timeout == 0 {
+            return false; 
+        }
+
+        let lba_mid = inb(self.io_registers.lba_mid_rw_w);
+        let lba_high = inb(self.io_registers.lba_high_rw_w);
+
+        // Return true if this device reports the ATAPI signature
+        (lba_mid == 0x14 && lba_high == 0xEB) || (lba_mid == 0x69 && lba_high == 0x96)
     }
+    
     // this function must to be used before each SCSCI command
     // and than you need to use wait_drq function
     pub fn prepare_scsi(&self) {
@@ -204,12 +219,19 @@ impl ATAPI {
     // this function wait while DRQ and BSY register is not ready
     // you need to use this function after send prepare to SCSI command
     pub fn wait_drq_and_busy(&self) -> Option<IOStatusRegister> {
-        if let Some(reg) = self.wait_busy(){
-            Some(reg)
-        } else {
-            while inb(self.io_registers.command_w_or_status_r_b) & IOStatusRegister::DRQ as u8 == 0 {}
-            None
+        if let Some(err) = self.wait_busy() {
+            return Some(err);
         }
+        let status = inb(self.io_registers.command_w_or_status_r_b);
+        
+        if status & (IOStatusRegister::ErrorIndicator as u8) != 0 {
+            return Some(IOStatusRegister::ErrorIndicator);
+        }
+        if status & (IOStatusRegister::DRQ as u8) != 0 {
+            return None; // DRQ ready
+        }
+        
+        Some(IOStatusRegister::ErrorIndicator) // Timeout waiting for DRQ
     }
     // this function wait while command byte is busy
     // if this function return None no one error register is not set
@@ -217,10 +239,12 @@ impl ATAPI {
     pub fn wait_busy(&self) -> Option<IOStatusRegister>{
         while inb(self.io_registers.command_w_or_status_r_b) & IOStatusRegister::BSY as u8 != 0 {}
         let status = inb(self.io_registers.command_w_or_status_r_b);
-        // if DriveFaultError ErrorIndicator not set
-        if status & IOStatusRegister::DriveFaultError as u8 != 0 {
+        if status == 0x00 || status == 0xFF {
+            return Some(IOStatusRegister::DriveFaultError);
+        }
+        if status & (IOStatusRegister::DriveFaultError as u8) != 0 {
             Some(IOStatusRegister::DriveFaultError)
-        } else if status & IOStatusRegister::ErrorIndicator as u8 != 0 {
+        } else if status & (IOStatusRegister::ErrorIndicator as u8) != 0 {
             Some(IOStatusRegister::ErrorIndicator)
         } else {
             None

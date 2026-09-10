@@ -6,3 +6,5 @@ edition = "2024"
 [dependencies]
 paging ={ path = "../paging" }
 atapi ={ path = "../atapi" }
+bootinfo = { path = "../bootinfo" }
+TSC = { path = "../TSC" }

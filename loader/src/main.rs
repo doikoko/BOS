@@ -1,10 +1,13 @@
+// 32 bit target
+
 #![no_std]
 #![no_main]
 #![allow(unreachable_code)]
-#![cfg(target_pointer_width = "32")]
 
-use atapi::*;
+use atapi::{LBAOrCHS, MasterOrSlave, *};
+use bootinfo::BootInfo;
 use paging::{paging32::*, DISABLE_CACHE, GLOBAL, PAGE_SIZE, PRESENT, WRITABLE, WRITE_THROUGH};
+use TSC::Tsc;
 
 const KERNEL_FUNC_ADDR: usize = 0x200_000;
 
@@ -103,22 +106,30 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
             options(nostack)
         );
     }
-    
+    let mut tsc = Tsc::new();
+    tsc.init();
+    BootInfo::set_tsc(tsc);
+
     print!("init PML4 in 32 bit mode / \0");
-    // init minimal PML4 for 32 bit
-    let pd = PD::new();
-    
-    const FIRST_ADDR: usize = 0x0;
-    const LAST_ADDR: usize = 0x400_000;
-    for i in (FIRST_ADDR..LAST_ADDR).step_by(0x200_000){
-        pd.set(0, i, PRESENT | WRITABLE | WRITE_THROUGH |
-            DISABLE_CACHE | PAGE_SIZE | GLOBAL);
+    loop{
+        BootInfo::get_tsc().expect("TSC is not initialized").delay(2_000_000);
+        print!("e / \0");
     }
-    pd.enable_pae();
+    // init minimal PD for 32 bit
+    let pd = PD::new();
+    pd.set_zeroes();
+    
+    // in 32-bit PSE mode, each entry maps 4MB (0x400_000)
+    // map 0..4MB (covers loader at 0x4000, VGA at 0xB8000, etc.)
+    pd.set(0, 0x0000_0000, PRESENT | WRITABLE | PAGE_SIZE);
+    // map 4MB..8MB
+    pd.set(1, 0x0040_0000, PRESENT | WRITABLE | PAGE_SIZE);
+
+    PD::enable_pae();
 
     print!("load kernel to 0x200_000 / \0");
-    let atapi = ATAPI::new(PrimaryOrSecondary::Primary);
-    
+    let atapi = ATAPI::new(PrimaryOrSecondary::Secondary);
+    atapi.set_flags(MasterOrSlave::Master, LBAOrCHS::LBA);
     if !atapi.is_has_device(){
         panic!();
     }
@@ -129,9 +140,9 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
     
     for i in 0..COMMAND_ITERATIONS{
         atapi.read_pio_lba_28(
-                // 0 because if we send it it will be 256(max value)
-                0, KERNEL_START_ADDR_IN_ISO as usize + (i * MEMORY_PER_ITERATION),
-                (KERNEL_START_ADDR as usize + (i * MEMORY_PER_ITERATION)) as *mut u16);
+            // 0 because if we send it it will be 256(max value)
+            0, KERNEL_START_ADDR_IN_ISO as usize + (i * MEMORY_PER_ITERATION),
+            (KERNEL_START_ADDR as usize + (i * MEMORY_PER_ITERATION)) as *mut u16);
     }
 
     loop{hlt!()};
@@ -142,8 +153,15 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
 }
 
 #[panic_handler]
-fn panic_handler(_: &core::panic::PanicInfo) -> !{
-    print!("PANIC! file: loader/src/main.rs\0");
+fn panic_handler(info: &core::panic::PanicInfo) -> !{
+    print!("PANIC! file: loader/src/main.rs / reason: \0");
+    print!(
+        info
+            .message()
+            .as_str()
+            .as_ref()
+            .unwrap()
+    );
 
     loop{hlt!()};
 }

@@ -7,7 +7,7 @@
 
 use paging::paging64::*;
 use paging::*;
-use io::{Colors, print, MAX_COLUMN, MAX_ROW};
+use print::{Colors, print, MAX_COLUMN, MAX_ROW};
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
@@ -77,7 +77,7 @@ pub extern "C" fn _start() -> ! {
         }
     }
 
-    pml4.enable_pae(); 
+    PML4::enable_pae(); 
     
     // set up interrupt descriptor table
     // unsafe {
