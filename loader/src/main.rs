@@ -4,95 +4,35 @@
 #![no_main]
 #![allow(unreachable_code)]
 
-use atapi::{LBAOrCHS, MasterOrSlave, *};
-use bootinfo::BootInfo;
-use paging::{paging32::*, DISABLE_CACHE, GLOBAL, PAGE_SIZE, PRESENT, WRITABLE, WRITE_THROUGH};
-use TSC::Tsc;
+mod print;
+mod long_mode;
+mod read_lba;
 
-const KERNEL_FUNC_ADDR: usize = 0x200_000;
+use bootinfo::BootInfo;
+use paging::paging32::setup_pml4;
+use TSC::Tsc;
+use atapi::{ATAPI, LBAOrCHS, DMAOrPIO, MasterOrSlave, PrimaryOrSecondary};
+use read_lba::ReadLba;
+
+use crate::long_mode::switch_to_64_bit_jmp_to_kernel;
 
 const KERNEL_START_ADDR: usize = 0x200_000;
-const KERNEL_SIZE: usize = 0x200_000;
-const KERNEL_START_ADDR_IN_ISO: usize = 0x32_000;
+const KERNEL_START_SECTOR: usize = 64;
+const KERNEL_SECTORS_TO_READ: u8 = 32;
 
 const SECTOR_SIZE: usize = 2048;
-
-const KERNEL_SECTORS_PER_ITERATION: usize = 256;
-const KERNEL_SECTORS_IN_KERNEL: usize = KERNEL_SIZE / SECTOR_SIZE;
-const COMMAND_ITERATIONS: usize = KERNEL_SECTORS_IN_KERNEL / KERNEL_SECTORS_PER_ITERATION;
-
-const MEMORY_PER_ITERATION: usize = KERNEL_SECTORS_PER_ITERATION * SECTOR_SIZE;
 macro_rules! hlt {
     () => {
         unsafe {core::arch::asm!("hlt")}
     };
 }
 
-trait ReadLba{
-    // maximum sectors - 256 (sectors = 0), 1 sectors to CD-rom is 2048 bytes
-    fn read_pio_lba_28(&self, sectors: u8, lba: usize, buffer: *mut u16);
-}
-impl ReadLba for ATAPI{
-    fn read_pio_lba_28(&self, sectors: u8, lba: usize, mut buffer: *mut u16) {
-        self.wait_drq_and_busy().unwrap();
-        
-        outb(self.io_registers.sector_count_rw_w, sectors);
-        
-        // low bytes
-        outb(self.io_registers.lba_low_rw_w, lba as u8);
-        // mid bytes
-        outb(self.io_registers.lba_mid_rw_w, (lba >> 8) as u8);
-        // high bytes
-        outb(self.io_registers.lba_high_rw_w, (lba >> 16) as u8);
-        // 1 byte
-        outb(self.io_registers.device_or_head_rw_b, (lba >> 24 & 0xE0) as u8);
-        // send command
-        outb(self.io_registers.command_w_or_status_r_b, ATAPIOCommands::ReadSectorsB as u8);
-        
-        self.clear_cache();
-        for _ in 0..(if sectors == 0 {256} else {sectors as u16}){
-            self.wait_drq_and_busy().unwrap();
-            
-            for _ in 0..SECTOR_SIZE / 2{
-                unsafe{ 
-                    *buffer = inw(self.io_registers.data_register_rw_w); 
-                    buffer = buffer.add(1);
-                };
-            }
-        }
-        self.wait_drq_and_busy().unwrap();
-    }
-}
-
-// because in 32 bit mode call convention is other need to 
-// call function as in other parts of code
-macro_rules! print {
-    ($arg : expr) => {
-        unsafe {
-            core::arch::asm!(
-                "push eax",
-                "push ebx",
-                "push edi",
-                
-                "mov edi, {0}",
-                "call {1}",
-
-                "pop edi",
-                "pop ebx",
-                "pop eax",
-                in(reg) $arg.as_bytes().as_ptr(),
-                in(reg) PRINT32_ADDR,
-            )
-        };
-    };
-}
-
 // this function defined in loader.asm
 // and address to this func contains in rdi register(passed as argument from asm)
 static mut PRINT32_ADDR: usize = 0;
-// GDT64 containing in loader.asm, through that
-// address of GDT64 passed to 'loader' function (below) by esi reg like argument
-static mut GDT64_ADDR: usize = 0;
+// address of "switch_to_64_bit" function from loader.asm. It useed because after 
+// switching this function works with 64 bit registers. It won't work in rust
+static mut SWITCH_TO_64_BIT: usize = 0;
 
 #[unsafe(link_section = ".loader.loader")]
 #[unsafe(no_mangle)]
@@ -102,7 +42,7 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
             "mov {}, edi",
             "mov {}, esi",
             out(reg) PRINT32_ADDR,
-            out(reg) GDT64_ADDR,
+            out(reg) SWITCH_TO_64_BIT,
             options(nostack)
         );
     }
@@ -110,46 +50,26 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
     tsc.init();
     BootInfo::set_tsc(tsc);
 
-    print!("init PML4 in 32 bit mode / \0");
-    loop{
-        BootInfo::get_tsc().expect("TSC is not initialized").delay(2_000_000);
-        print!("e / \0");
-    }
-    // init minimal PD for 32 bit
-    let pd = PD::new();
-    pd.set_zeroes();
-    
-    // in 32-bit PSE mode, each entry maps 4MB (0x400_000)
-    // map 0..4MB (covers loader at 0x4000, VGA at 0xB8000, etc.)
-    pd.set(0, 0x0000_0000, PRESENT | WRITABLE | PAGE_SIZE);
-    // map 4MB..8MB
-    pd.set(1, 0x0040_0000, PRESENT | WRITABLE | PAGE_SIZE);
-
-    PD::enable_pae();
-
     print!("load kernel to 0x200_000 / \0");
     let atapi = ATAPI::new(PrimaryOrSecondary::Secondary);
     atapi.set_flags(MasterOrSlave::Master, LBAOrCHS::LBA);
     if !atapi.is_has_device(){
         panic!();
     }
-    print!("next / \0");
     atapi.wait_drq_and_busy().unwrap();
     atapi.set_dma_or_pio(DMAOrPIO::PIO);
     atapi.set_flags(MasterOrSlave::Master, LBAOrCHS::LBA);
     
-    for i in 0..COMMAND_ITERATIONS{
-        atapi.read_pio_lba_28(
-            // 0 because if we send it it will be 256(max value)
-            0, KERNEL_START_ADDR_IN_ISO as usize + (i * MEMORY_PER_ITERATION),
-            (KERNEL_START_ADDR as usize + (i * MEMORY_PER_ITERATION)) as *mut u16);
-    }
+    atapi.read_pio_lba_28(
+        KERNEL_SECTORS_TO_READ,
+        KERNEL_START_SECTOR,
+        KERNEL_START_ADDR as *mut u16
+    );
 
-    loop{hlt!()};
-    let kernel_func: extern "C" fn() -> ! = unsafe {
-        core::mem::transmute(KERNEL_FUNC_ADDR)
-    };
-    kernel_func();
+    print!("init PML4 in 32 bit mode / \0");
+    setup_pml4();
+
+    switch_to_64_bit_jmp_to_kernel();
 }
 
 #[panic_handler]

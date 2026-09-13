@@ -47,6 +47,7 @@ pub mod paging64{
                 );
             }
         }
+
         // set memory from PML4 start to kernel as 0
         pub fn set_zeroes() {
             let mut ptr: *mut usize = super::PML4_ADDR as *mut usize;
@@ -57,14 +58,17 @@ pub mod paging64{
                 };
             };
         }
+
         // create new PML4 in first PML4_ADDR address
         pub fn new() -> &'a mut Self{
             unsafe{ &mut *(super::PML4_ADDR as *mut Self) }
         }
+
         // set INDEX element of array
         pub fn set(&mut self, index: usize){
             self.pdptes[index] = ((PDPTE_FIRST_ADDR + index * PDPTE_SIZE) << 12) | ALL_FLAGS;
         }
+
         // get INDEX element of array as &PDPTE
         pub fn get(&mut self, index: usize) -> &'a mut PDPTE {
             // create correct addr from addr | ALL_FLAGS
@@ -72,6 +76,7 @@ pub mod paging64{
     
             pdpte
         }
+
         pub fn enable_pae(){
             unsafe{
                 core::arch::asm!(
@@ -91,6 +96,7 @@ pub mod paging64{
             self.directories[index] = ((PD_FIRST_ADDR + index * PD_SIZE) << 12) | ALL_FLAGS;
         }
     
+
         pub fn get(&mut self, index: usize) -> &'a mut PD {
             let pd = unsafe { &mut *(((self.directories[index] & ALL_FLAGS) >> 12 ) as *mut PD ) };    
             
@@ -111,6 +117,37 @@ pub mod paging64{
 }
 #[cfg(target_pointer_width = "32")]
 pub mod paging32{  
+    use super::{PRESENT, WRITABLE, PAGE_SIZE, PML4_ADDR};
+
+    pub const PDPTE_ADDR: usize = 0x12000;
+    pub const PD_ADDR: usize = 0x13000;
+
+    /// builds the 4-level PML4 page tables at 0x11000 for Long Mode (0..8MB identity-mapped with 2MB pages)
+    pub fn setup_pml4() {
+        unsafe {
+            // zero out PML4 (0x11000..0x12000), PDPTE (0x12000..0x13000), PD (0x13000..0x14000)
+            let zero_ptr = PML4_ADDR as *mut u32;
+            for i in 0..(3 * 1024) {
+                *zero_ptr.add(i) = 0;
+            }
+
+            // PML4[0] points to PDPTE (0x12000) with PRESENT | WRITABLE
+            let pml4 = PML4_ADDR as *mut u64;
+            *pml4 = 0x12000 | (PRESENT as u64) | (WRITABLE as u64);
+
+            // PDPTE[0] points to PD (0x13000) with PRESENT | WRITABLE
+            let pdpte = PDPTE_ADDR as *mut u64;
+            *pdpte = 0x13000 | (PRESENT as u64) | (WRITABLE as u64);
+
+            // PD[0..4] map 0..8MB (4 x 2MB pages)
+            let pd = PD_ADDR as *mut u64;
+            let flags = (PRESENT | WRITABLE | PAGE_SIZE) as u64;
+            for i in 0..4 {
+                *pd.add(i) = ((i as u64) * 0x200_000) | flags;
+            }
+        }
+    }
+
     pub const PAGES_IN_PD: usize = 1024;
     #[repr(C, align(4096))]
     pub struct PD {
@@ -120,26 +157,42 @@ pub mod paging32{
         pub fn new() -> &'a mut Self{
             unsafe{ &mut *(super::PML4_ADDR as *mut Self) }
         }
+
         pub fn set(&mut self, index: usize, page: usize, flags: usize){
             self.pages[index] = page | flags;
         }
+
         pub fn set_zeroes(&mut self){
             for page in self.pages.iter_mut(){
                 *page = 0;
             }
         }
+
         pub fn enable_pae(){
             unsafe {
                 core::arch::asm!(
                     "mov cr3, {pdir}",
                     "mov eax, cr4",
-                    "or eax, 0x00000010",
+                    "or eax, 0x20", 
                     "mov cr4, eax",
                     "mov eax, cr0",
                     "or eax, 0x80000001",
                     "mov cr0, eax",
                     pdir = in(reg) super::PML4_ADDR,
                     out("eax") _,
+                )
+            }
+        }
+
+        pub fn disable_pae(){
+            const CR0_PAGING: u32 = 1 << 31;
+
+            unsafe {
+                core::arch::asm!(
+                    "mov eax, cr0",
+                    "and eax, ~{0:e}",
+                    "mov cr0, eax",
+                    in(reg) CR0_PAGING
                 )
             }
         }

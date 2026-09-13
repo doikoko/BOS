@@ -83,7 +83,9 @@ dependencies = [
  "TSC",
  "atapi",
  "bootinfo",
+ "io",
  "paging",
+ "result",
 ]
 
 [[package]]

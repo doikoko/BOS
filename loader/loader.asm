@@ -67,62 +67,56 @@ prot_mode_main:
 	mov esp, 0x3FFF	; initialize stack for prot mode
 	mov ebp, esp
 
-long_mode_support_check:
-	mov eax, 0x80000000
-	cpuid
-	cmp eax, 0x80000001	; if eax bellow => long mode 
-				; not supported
-	jb .no_long_mode
-
-	mov eax, 0x80000001	; if bit edx 29 = 0 => long mode
-				; not supported
-	cpuid			; return value to eax:edx
-	test edx, 1 << 29 ; if equal => long mode not supported
-	
-	jne jump_to_rust
-
-.no_long_mode:
-	mov edi, long_mode_unsupported
-	call PRINT32
-.LOOP2:
-	hlt
-	jmp .LOOP2
-
 jump_to_rust:
 %assign RUST_LOADER_ENTRY 0x4000
 	mov edi, PRINT32
-	mov esi, GDT64
-	xor eax, eax
+	mov esi, switch_to_64_bit
 	mov eax, RUST_LOADER_ENTRY
-	
+
 	jmp eax
 
-;switch_to_64_bit:
-;	mov ecx, 0xC0000080	; loading address of specific register
-;	rdmsr
-;	or eax, 1 << 8
-;	wrmsr			; writing data to specific register
-;	
-;	mov eax, cr4
-;	or eax, 1 << 5 ; enabling paging
-;	mov cr4, eax
-;
-;	mov eax, cr0
-;	or eax, 1 << 31
-;	mov cr0, eax
-;
-;	lgdt [GDT64.Pointer]
-;	jmp GDT64.Code:long_mode_main
-;
-;long_mode_main:
-;	[BITS 64]
-;	cli
-;	mov ax, GDT64.Data
-;	mov rsp, 0x3FFF
-;	mov ax, GDT64.TSS - GDT64.Null
-;	ltr ax
+; this function called from 
+switch_to_64_bit:
+	[BITS 32]
+	mov eax, 0x11000
+	mov cr3, eax
 
-	; end of loader
+	mov eax, cr4
+	or eax, 1 << 5
+	mov cr4, eax
+
+	mov ecx, 0xC0000080	; loading address of specific register
+	rdmsr
+	or eax, 1 << 8
+	wrmsr			; writing data to specific register
+
+	mov eax, cr0
+	or eax, 1 << 31
+	mov cr0, eax
+
+	mov esp, 0x200000
+	mov ebp, esp
+
+	lgdt [GDT64.Pointer]
+	jmp GDT64.Code:long_mode_main
+
+long_mode_main:
+	[BITS 64]
+	cli
+	mov ax, GDT64.Data
+	mov ds, ax
+	mov es, ax
+	mov fs, ax
+	mov gs, ax
+	mov ss, ax
+	mov rsp, 0x200000
+	mov rbp, rsp
+	; mov ax, GDT64.TSS - GDT64.Null
+	; ltr ax
+
+%assign KERNEL.KERNEL_START 0x200000
+	jmp KERNEL.KERNEL_START
+
 PRINT:
 %macro XOR_DS 0
 	xor ax, ax

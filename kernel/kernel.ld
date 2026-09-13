@@ -1,6 +1,6 @@
 ENTRY(_start)
 SECTIONS{
-    . = 0x1000;
+    . = 0x200000;
     .kernel : {
         KEEP(*(kernel.kernel))
         *(.kernel*) 

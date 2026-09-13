@@ -21,7 +21,8 @@ pub fn outw(port: u16, data: u16){
             in("ax") data
         )
     }
-}// function to get 8 bit data from port
+}
+// function to get 8 bit data from port
 pub fn inb(port: u16) -> u8{
     unsafe {
         let value: u8;
@@ -212,7 +213,7 @@ impl ATAPI {
     }
     
     // this function must to be used before each SCSCI command
-    // and than you need to use wait_drq function
+    // and than you need to use wait_drq_and_busy function
     pub fn prepare_scsi(&self) {
         outb(self.io_registers.command_w_or_status_r_b, ATAOtherCommands::PacketB as u8);
     }

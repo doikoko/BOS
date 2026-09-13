@@ -3,8 +3,13 @@ name = "loader"
 version = "0.1.0"
 edition = "2024"
 
+[profile.release]
+panic="abort"
+
 [dependencies]
 paging ={ path = "../paging" }
 atapi ={ path = "../atapi" }
 bootinfo = { path = "../bootinfo" }
 TSC = { path = "../TSC" }
+io = { path = "../io" }
+result = { path = "../result" }

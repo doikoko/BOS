@@ -7,27 +7,28 @@ SECTIONS {
         *(.loader*) 
     }
 
-    . = 0x790; /* because .loader section ~ 0x300bytes and addresses is pow of 2*/
+    . = ALIGN(16); 
     .text : {
         *(.text*)
     }
 
-    . = 0xe10; /* .text section ~ 0x600bytes */
+    . = ALIGN(16);
     .rodata : {
         *(.rodata*)
     }
 
-    . = 0xf04; /* .rodata ~ 0xd0bytes */
+    . = ALIGN(16);
     .data : {
         *(.data*)
     }
 
-    . = 0xf81; /* .data ~ 0x10 bytes */
+    . = ALIGN(16);
     .bss : {
         *(.bss)
         *(COMMON)
     }
     /DISCARD/ : {
+        *(.eh_frame*)
         *(.comment)
     }
 }

@@ -117,9 +117,11 @@ def main():
                 "error while generating ISO, maybe you haven't xorriso")
 
             kernel_elf = out_dir.joinpath("kernel.elf")
+            kernel_bin = out_dir.joinpath("kernel.bin")
+            command(f"objcopy -O binary {kernel_elf} {kernel_bin}")
 
             command(f"dd if={loader_elf} of={iso} conv=sync bs=2048 seek=50")
-            command(f"dd if={kernel_elf} of={iso} conv=sync bs=2048 seek=64")
+            command(f"dd if={kernel_bin} of={iso} conv=sync bs=2048 seek=64")
             
             shutil.rmtree(out_dir)
         except:
