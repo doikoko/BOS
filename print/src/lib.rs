@@ -25,18 +25,20 @@ const FRAMEBUFFER: *mut u8 = 0xB8000 as *mut u8;
 
 pub const MAX_COLUMN: u16 = 80;
 pub const MAX_ROW: u16 = 25;
-pub fn print(string: &str, fg: Colors, bg: Colors, pos: &mut usize){
-    if *pos > (MAX_COLUMN * MAX_ROW) as usize{ return; };
+
+pub fn print(string: &str, fg: Colors, bg: Colors, pos: usize){
+    let mut pos = pos;
+    if pos > (MAX_COLUMN * MAX_ROW) as usize{ return; };
     for symb in string.as_bytes(){
         unsafe{
-            *(FRAMEBUFFER.add(*pos)) = *symb;
-            *(FRAMEBUFFER.add(*pos).add(1)) = ((fg as u8) << 4) 
-                | ((bg as u8) & 0x0F);
-            *pos += 2;
+            *(FRAMEBUFFER.add(pos)) = *symb;
+            *(FRAMEBUFFER.add(pos).add(1)) = (((bg as u8) & 0x07) << 4) 
+                | ((fg as u8) & 0x0F);
+            pos += 2;
         };
     }
 }
-pub fn itos(mut num: i32, buf: &mut [u8]) -> &str{
+pub fn itos(mut num: i32, buf: &mut [u8]){
     buf
         .iter_mut()
         .rev()
@@ -45,5 +47,9 @@ pub fn itos(mut num: i32, buf: &mut [u8]) -> &str{
             num /= 10; 
         });
     if num < 0 { buf[0] = b'-' };
-    "hello"
+}
+
+pub fn clear_screen(){
+    print(unsafe { str::from_utf8_unchecked(&[b' '; MAX_COLUMN as usize * MAX_ROW as usize]) },
+        Colors::WHITE, Colors::BLACK, 0);
 }

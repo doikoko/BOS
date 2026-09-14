@@ -14,6 +14,7 @@ name = "atapi"
 version = "0.1.0"
 dependencies = [
  "bootinfo",
+ "io",
 ]
 
 [[package]]
@@ -68,6 +69,7 @@ version = "0.1.0"
 dependencies = [
  "atapi",
  "dma",
+ "heap",
  "interrupts",
  "io",
  "paging",

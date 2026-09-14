@@ -64,7 +64,7 @@ extern "C" fn loader(/* PINT32_ADDR: usize, GDT64_ADDR: usize */) {
         KERNEL_SECTORS_TO_READ,
         KERNEL_START_SECTOR,
         KERNEL_START_ADDR as *mut u16
-    );
+    ).unwrap();
 
     print!("init PML4 in 32 bit mode / \0");
     setup_pml4();

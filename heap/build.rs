@@ -10,4 +10,5 @@ fn main(){
     cc::Build::new()
         .file(file)
         .compile("heap");
+    println!("cargo:rerun-if-changed=src/heap.c")
 }

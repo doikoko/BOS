@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 bootinfo = { path = "../bootinfo" }
-
+io = { path = "../io" }
 [lib]
 crate-type = ["rlib"]

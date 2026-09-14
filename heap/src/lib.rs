@@ -1,17 +1,18 @@
 #![no_std]
 #![allow(dead_code)]
 
-use core::mem::size_of;
+pub mod _box;
+pub mod vec;
 
 use result::Result;
 
-const HEAP_FIRST_ADDR: usize = 0x400000 + HEAP_TABLE_SIZE;
+const HEAP_FIRST_ADDR: usize = 0x400000;
+const HEAP_MEMORY_FIRST_ADDR: usize = 0x400000 + HEAP_TABLE_SIZE;
 const HEAP_LAST_ADDR: usize = 0x600000;
-const HEAP_SIZE: usize = 0x200000 - HEAP_TABLE_SIZE;
+const HEAP_MEMORY_SIZE: usize = HEAP_LAST_ADDR - HEAP_FIRST_ADDR - HEAP_TABLE_SIZE;
 
 const HEAP_TABLE_SIZE: usize = 0x4000;
-const HEAP_TABLE_FIRST_ADDR: usize = 0x400000;
-const HEAP_TABLE_LAST_ADDR: usize = 0x400000 + HEAP_TABLE_SIZE;
+const HEAP_TABLE_FIRST_ADDR: usize = HEAP_FIRST_ADDR;
 
 // 1bit management 0x10 bytes of heap
 const HEAP_PACKET_SIZE: u8 = 0x10;
@@ -23,7 +24,7 @@ unsafe extern "C" {
 #[repr(C)]
 struct Heap{
     heap_table: [u8; HEAP_TABLE_SIZE],
-    heap_memory: [u8; HEAP_SIZE]
+    heap_memory: [u8; HEAP_MEMORY_SIZE]
 }
 impl<'a> Heap{
     pub fn new() -> &'a mut Self{
@@ -31,7 +32,7 @@ impl<'a> Heap{
         unsafe {
             ptr.write(Heap {
                 heap_table: [0u8; HEAP_TABLE_SIZE], 
-                heap_memory: [0u8; HEAP_SIZE] 
+                heap_memory: [0u8; HEAP_MEMORY_SIZE] 
             });
 
             &mut *ptr
@@ -45,7 +46,7 @@ impl<'a> Heap{
             None
         }
         else {
-            Some( unsafe{ &mut *(ptr as *mut ()) })
+            Some(ptr as *mut ())
         }
     }
     pub(crate) fn free(ptr: *mut (), len: u32) -> Result{
@@ -88,78 +89,6 @@ impl<'a> Heap{
     pub(crate) fn drop(ptr: *mut (), len: u32, msg: &str){
         if let Result::Err = Heap::free(ptr, len){
             panic!("{}", msg);
-        }
-    }
-}
-struct Box<T>(*mut T);
-impl<T> Box<T>{
-    pub fn new(data: T) -> Self{
-        Self (
-            match Heap::malloc(size_of::<T>() as u32){
-                Some(mem) => {
-                    unsafe { (mem as *mut T).write(data); };
-                    mem as *mut T
-                },
-                None => panic!("Box panicked while malloc")
-            },
-        )
-    }
-    pub fn get(&self) -> T{
-        unsafe { self.0.read() }
-    }
-    pub fn set(&mut self, data: T) {
-        unsafe { self.0.write(data); };
-    }
-}
-impl<T> Drop for Box<T>{
-    fn drop(&mut self) {
-        if let Result::Err = Heap::free(self.0 as *mut (), size_of::<T>() as u32){
-            panic!("Box panicked while drop")
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-struct Vec<T>{
-    /// ptr is pointer to heap memory
-    ptr: *mut T,
-    /// len is lenght vec in bytes
-    len: u32
-}
-impl<T> Vec<T>{
-    pub fn new(first: T) -> Self{
-        Self{
-            ptr: match Heap::malloc(size_of::<T>() as u32){
-                Some(mem) => {
-                    unsafe { (mem as *mut T).write(first); };
-                    mem as *mut T
-                },
-                None => panic!("Box panicked while malloc")
-            },
-            len: size_of::<T>() as u32
-        }
-    }
-    pub fn push(&mut self, data: T){
-        let size = size_of::<T>() as u32;
-        if (HEAP_PACKET_SIZE as u32) - self.len - size == 0{
-            let temp_ptr = self.ptr;
-            self.ptr = Heap::malloc(self.len + HEAP_PACKET_SIZE as u32)
-                .expect("Vec panicked while push") as *mut T;
-
-            for i in 0..self.len as usize{
-                unsafe{
-                    self.ptr
-                    .add(i)
-                    .write_unaligned(
-                        temp_ptr.add(i)
-                        .read_unaligned()
-                    );
-                };
-            }
-        }
-        unsafe{
-            self.len += size;
-            self.ptr.add(self.len as usize).write_unaligned(data);
         }
     }
 }

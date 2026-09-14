@@ -6,22 +6,22 @@ SECTIONS{
         *(.kernel*) 
     }
 
-    . = ALIGN(0x10000);
+    . = ALIGN(16);
     .text : {
         *(.text*)
     }
 
-    . = ALIGN(0x10000);
+    . = ALIGN(16);
     .rodata : {
         *(.rodata*)
     }
 
-    . = ALIGN(0x10000);
+    . = ALIGN(16);
     .data : {
         *(.data*)
     }
 
-    . = ALIGN(0x10000);
+    . = ALIGN(16);
     .bss : {
         *(.bss)
         *(COMMON)

@@ -3,11 +3,11 @@
 #![allow(dead_code)]
 #![allow(unused_macros)]
 #![allow(unreachable_code)]
-// kernel of OS
 
+use heap::_box::Box;
 use paging::paging64::*;
 use paging::*;
-use print::{Colors, print, MAX_COLUMN, MAX_ROW};
+use print::{Colors, clear_screen, print};
 
 const SERIAL_COM1_BASE: u16 = 0x3F80;
 
@@ -32,13 +32,15 @@ macro_rules! hlt {
     () => { unsafe { core::arch::asm!("hlt"); } }
 }
 
-// static mut IDT: ints::IntDescrTable64 = MaybeUninit::uninit().assume_init();
+//static mut IDT: interrupts::IntDescrTable64 = unsafe{ MaybeUninit::uninit().assume_init() };
 #[unsafe(link_section = "kernel.kernel")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    print(unsafe { str::from_utf8_unchecked(&[b' '; MAX_COLUMN as usize * MAX_ROW as usize]) },
-        Colors::WHITE, Colors::BLACK, &mut 0);
+    clear_screen();
+    let boxed = Box::new(0x31u8);
+    print(core::str::from_utf8(&[boxed.get()]).unwrap(), Colors::WHITE, Colors::BLACK, 0);
     loop { hlt!(); }
+    
     PML4::set_zeroes();
     PML4::init();
     let pml4 = PML4::new();
@@ -138,6 +140,23 @@ pub extern "C" fn _start() -> ! {
 }
 
 #[panic_handler]
-fn panic_handler(_: &core::panic::PanicInfo) -> !{
-    loop{hlt!()}
+fn panic_handler(info: &core::panic::PanicInfo) -> !{
+    let string = "PANIC! file: loader/src/main.rs / reason: ";
+    print(
+        string,
+        Colors::RED,
+        Colors::BLACK,
+        0
+    );
+    print(
+        info
+            .message()
+            .as_str()
+            .unwrap(),
+        Colors::RED,
+        Colors::BLACK,
+        string.len() * 2
+    );
+
+    loop{hlt!()};
 }
